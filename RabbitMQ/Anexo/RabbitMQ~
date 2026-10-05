@@ -1,0 +1,40 @@
+ANEXO:
+XXXXXX
+
+PASO 1:
+-------
+docker run -d \
+--hostname rabbit-host \
+--name rabbitmq \
+-p 5672:5672 \
+-p 15672:15672 \
+rabbitmq:management
+
+PASO 2:
+-------
+docker ps
+
+PASO 3:
+-------
+docker start rabbitmq
+
+PASO 4:
+-------
+docker ps
+
+PASO 5: AUX
+------------
+docker stop rabbitmq
+
+PASO 6: AUX
+-----------
+docker rm rabbitmq
+
+PASO 7: AUX
+-----------
+docker run -d \
+--hostname rabbit-host \
+--name rabbitmq \
+-p 5672:5672 \
+-p 15672:15672 \
+rabbitmq:management
