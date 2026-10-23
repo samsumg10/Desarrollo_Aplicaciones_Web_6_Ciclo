@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.teleticket.cola.dto.ConsumirPaseRequest;
+import com.teleticket.cola.dto.DevolverPaseRequest;
 import com.teleticket.cola.dto.PaseConsumidoResponse;
 import com.teleticket.cola.service.PaseService;
 
@@ -32,11 +33,21 @@ public class PaseInternalController {
 
 	/**
 	 * Consume el pase. 200 la primera vez; 409 PASE_NO_VALIDO si no existe, es ajeno,
-	 * ya se uso o vencio.
+	 * es de otro evento (si se indica eventoId), ya se uso o vencio.
 	 */
 	@PostMapping("/pases/{codigo}/consumir")
 	public PaseConsumidoResponse consumir(@PathVariable UUID codigo,
 			@Valid @RequestBody ConsumirPaseRequest req) {
-		return servicio.consumir(codigo, req.usuarioId());
+		return servicio.consumir(codigo, req.usuarioId(), req.eventoId());
+	}
+
+	/**
+	 * Devuelve un pase USADO a VIGENTE (compensacion de ms-ordenes). 200, o 409
+	 * PASE_NO_DEVOLVIBLE si no esta usado, es ajeno o ya vencio.
+	 */
+	@PostMapping("/pases/{codigo}/devolver")
+	public PaseConsumidoResponse devolver(@PathVariable UUID codigo,
+			@Valid @RequestBody DevolverPaseRequest req) {
+		return servicio.devolver(codigo, req.usuarioId());
 	}
 }

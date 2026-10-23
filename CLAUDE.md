@@ -15,8 +15,8 @@ Plataforma de venta de entradas con API Gateway + 8 microservicios. Idioma: espa
 
 ## Estado
 
-Fases 0–7 hechas. **Siguiente: Bloque C = Fases 8+9 juntas** (`ms-ordenes` con Feign + `ms-pagos`).
-Orden acordado hasta cumplir el OBJ 2: 8+9 → 10 → 14; luego 11, 16, 15. Se descartan 12, 13, 17
+Fases 0–8 hechas. **Siguiente: Fase 9** (`ms-pagos` + `POST /api/ordenes/{id}/pagar`). Orden
+acordado hasta cumplir el OBJ 2: 9 → 10 → 14; luego 11, 16, 15. Se descartan 12, 13, 17
 (ojo: sin la 12 las reservas sin pagar **no vencen** y retienen el stock; ver FASE-06).
 
 ## Datos que no se deducen del código
@@ -34,6 +34,9 @@ Orden acordado hasta cumplir el OBJ 2: 8+9 → 10 → 14; luego 11, 16, 15. Se d
 - `ms-cola`: la capacidad por ciclo se prueba con `$env:COLA_CAPACIDAD_POR_CICLO = "2"` en la consola
   desde la que arrancas (también `COLA_CICLO_SEGUNDOS`, `COLA_PASE_MINUTOS`). Para ver el sorteo se
   crea un evento con `inicioVenta` 2 minutos adelante (comandos en FASE-07).
+- `ms-ordenes` llama por Feign a cola, eventos e inventario (`MS_COLA_URL`, `MS_EVENTOS_URL`,
+  `MS_INVENTARIO_URL`, las mismas variables del gateway). Timeouts 1 s / 3 s. Si falla algo tras
+  consumir el pase, lo devuelve con `POST /internal/pases/{codigo}/devolver` (ms-cola).
 - Spring Boot 4.1.1 + Spring Cloud 2025.1.3 + **Jackson 3** (`tools.jackson`): la propiedad
   `spring.jackson.serialization.write-dates-as-timestamps` impide arrancar.
 - `spring.jpa.defer-datasource-initialization` debe ir en `false` (las tablas las crea `schema.sql`).
