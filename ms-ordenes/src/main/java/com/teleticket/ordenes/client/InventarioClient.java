@@ -1,7 +1,11 @@
 package com.teleticket.ordenes.client;
 
+import java.util.UUID;
+
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.teleticket.ordenes.client.dto.CrearReservaRequest;
@@ -19,4 +23,15 @@ public interface InventarioClient {
 	 */
 	@PostMapping("/internal/reservas")
 	ReservaResponse reservar(@RequestBody CrearReservaRequest req);
+
+	/**
+	 * ACTIVA -> EN_PAGO: protege la reserva mientras se cobra. Rechaza (409 RESERVA_VENCIDA) las
+	 * ya vencidas. Si ya esta EN_PAGO responde OK, asi que se puede repetir.
+	 */
+	@PutMapping("/internal/reservas/{reservaId}/en-pago")
+	ReservaResponse enPago(@PathVariable("reservaId") UUID reservaId);
+
+	/** EN_PAGO -> ACTIVA: el pago se rechazo y el comprador puede reintentar. Tambien repetible. */
+	@PutMapping("/internal/reservas/{reservaId}/activar")
+	ReservaResponse activar(@PathVariable("reservaId") UUID reservaId);
 }

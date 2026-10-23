@@ -41,6 +41,35 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!-- Fase 9: acceso a la base de datos con JPA -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- Driver de PostgreSQL. 'runtime' porque solo se necesita al ejecutar -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<!-- Valida los datos que llegan en las peticiones (@NotNull, @Pattern...) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<!-- RabbitMQ: ms-pagos aun no publica ni consume nada (el reembolso llega en la fase 11),
+		     pero el plan lo incluye desde ahora para no tocar el pom otra vez -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+		<!-- Libreria comun (libs/mensajeria-comun): sobre, DTO de mensajes y constantes.
+		     Hay que instalarla antes con 'mvnw install'. -->
+		<dependency>
+			<groupId>com.teleticket</groupId>
+			<artifactId>mensajeria-comun</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.projectlombok</groupId>

@@ -15,8 +15,8 @@ Plataforma de venta de entradas con API Gateway + 8 microservicios. Idioma: espa
 
 ## Estado
 
-Fases 0–8 hechas. **Siguiente: Fase 9** (`ms-pagos` + `POST /api/ordenes/{id}/pagar`). Orden
-acordado hasta cumplir el OBJ 2: 9 → 10 → 14; luego 11, 16, 15. Se descartan 12, 13, 17
+Fases 0–9 hechas. **Siguiente: Fase 10** (`ms-teletickets`: emisión firmada al recibir `orden.pagada`).
+Orden acordado hasta cumplir el OBJ 2: 10 → 14; luego 11, 16, 15. Se descartan 12, 13, 17
 (ojo: sin la 12 las reservas sin pagar **no vencen** y retienen el stock; ver FASE-06).
 
 ## Datos que no se deducen del código
@@ -37,6 +37,9 @@ acordado hasta cumplir el OBJ 2: 9 → 10 → 14; luego 11, 16, 15. Se descartan
 - `ms-ordenes` llama por Feign a cola, eventos e inventario (`MS_COLA_URL`, `MS_EVENTOS_URL`,
   `MS_INVENTARIO_URL`, las mismas variables del gateway). Timeouts 1 s / 3 s. Si falla algo tras
   consumir el pase, lo devuelve con `POST /internal/pases/{codigo}/devolver` (ms-cola).
+- `ms-ordenes` también llama a `ms-pagos` (`MS_PAGOS_URL`) y publica `orden.pagada`. `ms-pagos` es idempotente por
+  `ordenId`; tarjeta terminada en `0000` rechaza, `9999` tarda 5 s. Una orden con el pago sin confirmar queda en
+  `PENDIENTE_PAGO` y se puede volver a pagar (ver FASE-09).
 - Spring Boot 4.1.1 + Spring Cloud 2025.1.3 + **Jackson 3** (`tools.jackson`): la propiedad
   `spring.jackson.serialization.write-dates-as-timestamps` impide arrancar.
 - `spring.jpa.defer-datasource-initialization` debe ir en `false` (las tablas las crea `schema.sql`).

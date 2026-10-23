@@ -56,6 +56,23 @@ public class ManejadorErrores {
 						.formatted(ex.getServicio()), req);
 	}
 
+	/** La pasarela rechazo la tarjeta -> 402. La orden sigue RESERVADA: puede reintentar con otra. */
+	@ExceptionHandler(PagoRechazadoException.class)
+	public ResponseEntity<Map<String, Object>> pagoRechazado(PagoRechazadoException ex, WebRequest req) {
+		return respuesta(HttpStatus.PAYMENT_REQUIRED, "PAGO_RECHAZADO",
+				"Pago rechazado: %s. Tu reserva sigue vigente: puedes intentar con otra tarjeta.".formatted(ex.getMessage()),
+				req);
+	}
+
+	/** ms-pagos no respondio y no se sabe si cobro -> 503. Reintentar es seguro (ms-pagos es idempotente). */
+	@ExceptionHandler(PagoNoConfirmadoException.class)
+	public ResponseEntity<Map<String, Object>> pagoNoConfirmado(PagoNoConfirmadoException ex, WebRequest req) {
+		System.err.println("[ms-ordenes] " + ex.getMessage() + (ex.getCause() != null ? " <- " + ex.getCause() : ""));
+		return respuesta(HttpStatus.SERVICE_UNAVAILABLE, "PAGO_NO_CONFIRMADO",
+				"No pudimos confirmar tu pago. Es posible que se haya cobrado: no pagues con otra tarjeta, "
+						+ "vuelve a intentar con la misma en unos segundos y no se te cobrara dos veces.", req);
+	}
+
 	/** Una regla del negocio lo prohibe (pase invalido, sin stock, maximo excedido...) -> 409. */
 	@ExceptionHandler(ReglaNegocioException.class)
 	public ResponseEntity<Map<String, Object>> reglaNegocio(ReglaNegocioException ex, WebRequest req) {

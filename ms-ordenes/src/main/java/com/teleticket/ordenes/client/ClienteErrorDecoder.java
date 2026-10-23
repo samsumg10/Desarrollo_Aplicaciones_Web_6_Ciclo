@@ -54,6 +54,7 @@ public class ClienteErrorDecoder implements ErrorDecoder {
 			case "ColaClient" -> "ms-cola";
 			case "EventoClient" -> "ms-eventos";
 			case "InventarioClient" -> "ms-inventario";
+			case "PagoClient" -> "ms-pagos";
 			default -> cliente;
 		};
 

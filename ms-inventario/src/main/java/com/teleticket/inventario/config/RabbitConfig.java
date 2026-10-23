@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import com.teleticket.mensajeria.Mensajeria;
 
 /**
- * La cola de ms-inventario para evento.publicado.
+ * Las colas de ms-inventario: evento.publicado (fase 6) y orden.pagada (fase 9).
  *
  * Cada consumidor declara SU cola: asi el servicio arranca aunque ms-eventos
  * no lo haya hecho antes. ms-eventos la declara tambien (fase 5, para poder ver
@@ -35,5 +35,17 @@ public class RabbitConfig {
 	Binding bindingEventoPublicado(@Qualifier("colaInventarioEventoPublicado") Queue cola,
 			@Qualifier("exchangePrincipal") TopicExchange exchange) {
 		return BindingBuilder.bind(cola).to(exchange).with(Mensajeria.EVENTO_PUBLICADO);
+	}
+
+	/** Fase 9: orden.pagada. ms-ordenes declara la misma cola (ver su RabbitConfig); mismos parametros. */
+	@Bean
+	Queue colaInventarioOrdenPagada() {
+		return QueueBuilder.durable(Mensajeria.INVENTARIO_ORDEN_PAGADA).build();
+	}
+
+	@Bean
+	Binding bindingOrdenPagada(@Qualifier("colaInventarioOrdenPagada") Queue cola,
+			@Qualifier("exchangePrincipal") TopicExchange exchange) {
+		return BindingBuilder.bind(cola).to(exchange).with(Mensajeria.ORDEN_PAGADA);
 	}
 }

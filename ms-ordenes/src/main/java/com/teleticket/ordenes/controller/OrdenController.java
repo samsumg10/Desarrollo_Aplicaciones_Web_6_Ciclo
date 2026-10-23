@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.teleticket.ordenes.dto.CrearOrdenRequest;
 import com.teleticket.ordenes.dto.OrdenResponse;
+import com.teleticket.ordenes.dto.PagarRequest;
 import com.teleticket.ordenes.exception.NoAutenticadoException;
 import com.teleticket.ordenes.service.OrdenService;
 
@@ -54,6 +55,23 @@ public class OrdenController {
 			@Valid @RequestBody CrearOrdenRequest req) {
 		OrdenResponse orden = servicio.crear(exigirUsuario(usuarioId), pase, req);
 		return ResponseEntity.created(URI.create("/api/ordenes/" + orden.id())).body(orden);
+	}
+
+	/**
+	 * Paga una orden mia con una tarjeta (CU-06). Es seguro repetirlo: no cobra dos veces.
+	 *
+	 * 200 con la orden PAGADA (tambien si ya lo estaba). 402 si la tarjeta se rechaza (la orden sigue
+	 * RESERVADA y se puede intentar con otra). 409 si la orden no se puede pagar o la reserva vencio.
+	 * 503 si ms-pagos no respondio y no se sabe si cobro (reintentar es seguro).
+	 *
+	 * El gateway no exige X-Pase-Compra aqui: pagar una orden que ya existe no consume ningun pase.
+	 */
+	@PostMapping("/{ordenId}/pagar")
+	public OrdenResponse pagar(@PathVariable UUID ordenId,
+			@RequestHeader(value = "X-Usuario-Id", required = false) String usuarioId,
+			@RequestHeader(value = "X-Request-Id", required = false) String requestId,
+			@Valid @RequestBody PagarRequest req) {
+		return servicio.pagar(exigirUsuario(usuarioId), ordenId, req, requestId);
 	}
 
 	/**

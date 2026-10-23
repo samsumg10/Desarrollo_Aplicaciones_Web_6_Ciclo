@@ -9,9 +9,10 @@ package com.teleticket.inventario.entity;
  *      |                                     v
  *      +----------------------------------> LIBERADA
  *
- * En esta fase solo se recorre ACTIVA <-> EN_PAGO. CONFIRMADA y LIBERADA las
- * producen los consumidores de orden.pagada, reserva.vencida y
- * orden.reembolsada, que llegan en fases posteriores.
+ * ACTIVA <-> EN_PAGO lo mueve ms-ordenes por la API interna (fase 8/9).
+ * CONFIRMADA la produce el consumidor de orden.pagada (fase 9). LIBERADA la
+ * producen los de reserva.vencida y orden.reembolsada, que llegan en fases
+ * posteriores.
  */
 public enum EstadoReserva {
 

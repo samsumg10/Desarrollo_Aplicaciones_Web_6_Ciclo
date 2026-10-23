@@ -1,6 +1,7 @@
 package com.teleticket.ordenes.service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -14,19 +15,30 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.teleticket.ordenes.client.ColaClient;
 import com.teleticket.ordenes.client.EventoClient;
+import com.teleticket.mensajeria.Mensajeria;
+import com.teleticket.mensajeria.PublicacionFallidaException;
+import com.teleticket.mensajeria.PublicadorEventos;
+import com.teleticket.mensajeria.SobreMensaje;
+import com.teleticket.mensajeria.mensajes.OrdenPagada;
 import com.teleticket.ordenes.client.InventarioClient;
+import com.teleticket.ordenes.client.PagoClient;
+import com.teleticket.ordenes.client.dto.CobrarRequest;
 import com.teleticket.ordenes.client.dto.ConsumirPaseRequest;
 import com.teleticket.ordenes.client.dto.CrearReservaRequest;
 import com.teleticket.ordenes.client.dto.DevolverPaseRequest;
+import com.teleticket.ordenes.client.dto.PagoResponse;
 import com.teleticket.ordenes.client.dto.ReservaResponse;
 import com.teleticket.ordenes.client.dto.ZonaInternaResponse;
 import com.teleticket.ordenes.dto.CrearOrdenRequest;
 import com.teleticket.ordenes.dto.OrdenInternaResponse;
 import com.teleticket.ordenes.dto.OrdenResponse;
+import com.teleticket.ordenes.dto.PagarRequest;
 import com.teleticket.ordenes.entity.EstadoOrden;
 import com.teleticket.ordenes.entity.Orden;
 import com.teleticket.ordenes.entity.OrdenHistorial;
 import com.teleticket.ordenes.exception.NoEncontradoException;
+import com.teleticket.ordenes.exception.PagoNoConfirmadoException;
+import com.teleticket.ordenes.exception.PagoRechazadoException;
 import com.teleticket.ordenes.exception.PaseNoValidoException;
 import com.teleticket.ordenes.exception.PaseRequeridoException;
 import com.teleticket.ordenes.exception.ReglaNegocioException;
@@ -66,15 +78,20 @@ public class OrdenService {
 	private final ColaClient cola;
 	private final EventoClient eventos;
 	private final InventarioClient inventario;
+	private final PagoClient pagos;
+	private final PublicadorEventos publicador;
 	private final TransactionTemplate tx;
 
 	public OrdenService(OrdenRepository ordenRepo, OrdenHistorialRepository historialRepo, ColaClient cola,
-			EventoClient eventos, InventarioClient inventario, TransactionTemplate tx) {
+			EventoClient eventos, InventarioClient inventario, PagoClient pagos, PublicadorEventos publicador,
+			TransactionTemplate tx) {
 		this.ordenRepo = ordenRepo;
 		this.historialRepo = historialRepo;
 		this.cola = cola;
 		this.eventos = eventos;
 		this.inventario = inventario;
+		this.pagos = pagos;
+		this.publicador = publicador;
 		this.tx = tx;
 	}
 
@@ -153,6 +170,135 @@ public class OrdenService {
 			}
 			throw e;
 		}
+	}
+
+	/**
+	 * Paga una orden (CU-06). Tampoco es @Transactional: entre medias hay llamadas HTTP.
+	 *
+	 * <pre>
+	 *   1. validar            la orden es mia y esta RESERVADA (o PENDIENTE_PAGO: un reintento)
+	 *   2. inventario.enPago  la reserva no puede vencer mientras se cobra   (idempotente)
+	 *   3. RESERVADA -> PENDIENTE_PAGO
+	 *   4. pagos.cobrar       idempotente por orden
+	 *        APROBADO  -> PAGADA y se publica orden.pagada
+	 *        RECHAZADO -> inventario.activar + vuelve a RESERVADA, y 402
+	 *        sin respuesta -> se queda PENDIENTE_PAGO, y 503
+	 * </pre>
+	 *
+	 * Pagar es seguro de repetir. Por eso una orden que se queda en PENDIENTE_PAGO (ms-pagos no contesto)
+	 * se puede volver a pagar: ms-pagos devuelve el cobro que ya hizo en vez de cobrar de nuevo. Y una
+	 * orden ya PAGADA responde 200 con la orden, sin llamar a nadie.
+	 *
+	 * Lo que NO se hace cuando ms-pagos no responde es devolver la orden a RESERVADA: el cobro pudo
+	 * haberse hecho, y dejar la orden "sin pagar" con el dinero ya tomado seria peor que dejarla pendiente.
+	 */
+	public OrdenResponse pagar(UUID usuarioId, UUID ordenId, PagarRequest req, String requestId) {
+		Orden orden = ordenRepo.findById(ordenId)
+				.filter(o -> o.getUsuarioId().equals(usuarioId))
+				.orElseThrow(() -> new NoEncontradoException("No existe la orden " + ordenId));
+
+		// 1. Validar. El mismo error que una orden ajena (404) para no revelar que existe.
+		switch (orden.getEstado()) {
+			case PAGADA, EMITIDA -> {
+				return OrdenResponse.de(orden);
+			}
+			case RESERVADA -> {
+				if (!Instant.now().isBefore(orden.getVenceEn())) {
+					throw new ReglaNegocioException("ORDEN_VENCIDA", "La reserva de esta orden vencio el " + orden.getVenceEn());
+				}
+			}
+			case PENDIENTE_PAGO -> {
+				// Un reintento: el primer intento no llego a saberse como termino.
+			}
+			default -> throw new ReglaNegocioException("ORDEN_NO_PAGABLE",
+					"La orden esta %s y no se puede pagar".formatted(orden.getEstado()));
+		}
+
+		// 2. Proteger la reserva. Si vencio, ms-inventario responde 409 RESERVA_VENCIDA y aun no se toco nada.
+		llamar("ms-inventario", () -> inventario.enPago(orden.getReservaId()));
+
+		// 3. Marcar la orden. Si otra peticion ya la marco, da igual: ms-pagos decide quien cobra.
+		if (orden.getEstado() == EstadoOrden.RESERVADA) {
+			cambiarEstado(ordenId, EstadoOrden.RESERVADA, EstadoOrden.PENDIENTE_PAGO,
+					"Pago iniciado: reserva protegida mientras se cobra");
+		}
+
+		// 4. Cobrar.
+		PagoResponse pago;
+		try {
+			pago = llamar("ms-pagos", () -> pagos.cobrar(
+					new CobrarRequest(ordenId, orden.getTotal(), req.numeroTarjeta(), req.titular())));
+		} catch (ServicioNoDisponibleException e) {
+			throw new PagoNoConfirmadoException("No se supo si ms-pagos cobro la orden " + ordenId + ": " + e.getMessage(), e);
+		}
+
+		return switch (pago.estado()) {
+			case "APROBADO" -> aprobar(orden, pago, requestId);
+			case "RECHAZADO" -> rechazar(orden, pago);
+			default -> throw new PagoNoConfirmadoException(
+					"ms-pagos respondio un estado inesperado para la orden %s: %s".formatted(ordenId, pago.estado()), null);
+		};
+	}
+
+	/** APROBADO -> PAGADA y se avisa. Solo publica quien hizo el cambio de estado, no quien llega tarde. */
+	private OrdenResponse aprobar(Orden orden, PagoResponse pago, String requestId) {
+		boolean cambio = cambiarEstado(orden.getId(), EstadoOrden.PENDIENTE_PAGO, EstadoOrden.PAGADA,
+				"Pago aprobado (referencia %s)".formatted(pago.referenciaPasarela()));
+
+		Orden actual = ordenRepo.findById(orden.getId()).orElseThrow();
+		if (cambio) {
+			publicarOrdenPagada(actual, requestId);
+		}
+		return OrdenResponse.de(actual);
+	}
+
+	/**
+	 * RECHAZADO -> la reserva vuelve a ACTIVA y la orden a RESERVADA, para reintentar con otra tarjeta.
+	 *
+	 * Si ms-inventario no responde, la orden se queda en PENDIENTE_PAGO junto con su reserva EN_PAGO:
+	 * es un estado coherente, y el siguiente intento de pago lo retoma sin problema.
+	 */
+	private OrdenResponse rechazar(Orden orden, PagoResponse pago) {
+		String motivo = pago.motivoRechazo() != null ? pago.motivoRechazo() : "la pasarela no dio motivo";
+		try {
+			llamar("ms-inventario", () -> inventario.activar(orden.getReservaId()));
+			cambiarEstado(orden.getId(), EstadoOrden.PENDIENTE_PAGO, EstadoOrden.RESERVADA,
+					"Pago rechazado (%s): la orden vuelve a RESERVADA".formatted(motivo));
+		} catch (ServicioNoDisponibleException e) {
+			log.warn("Orden {}: pago rechazado, pero no se pudo reactivar la reserva; sigue PENDIENTE_PAGO: {}",
+					orden.getId(), e.getMessage());
+		}
+		throw new PagoRechazadoException(motivo);
+	}
+
+	/**
+	 * orden.pagada: ms-inventario confirma la reserva y (fase 10) ms-tickets emite las entradas.
+	 *
+	 * Se publica DESPUES de guardar PAGADA, para que quien reciba el mensaje encuentre la orden ya pagada.
+	 * Si el broker no confirma, el pago ya esta hecho y la orden PAGADA: no se le dice al comprador que
+	 * fallo, se deja el error en el log. Es el hueco que cierra el patron outbox (guardar el mensaje en la
+	 * misma transaccion y publicarlo despues), que queda fuera del alcance de las fases del plan.
+	 */
+	private void publicarOrdenPagada(Orden orden, String requestId) {
+		try {
+			publicador.publicar(Mensajeria.ORDEN_PAGADA, SobreMensaje.de(Mensajeria.ORDEN_PAGADA, requestId,
+					new OrdenPagada(orden.getId(), orden.getUsuarioId(), orden.getEventoId(), orden.getZonaId(),
+							orden.getCantidad(), orden.getReservaId(), orden.getTotal())));
+		} catch (PublicacionFallidaException e) {
+			log.error("Orden {} PAGADA pero orden.pagada NO se publico: la reserva no se confirmara ni se "
+					+ "emitiran entradas hasta republicarla a mano: {}", orden.getId(), e.getMessage());
+		}
+	}
+
+	/** Cambia el estado de la orden y deja la fila de auditoria, juntos. Devuelve false si otra peticion se adelanto. */
+	private boolean cambiarEstado(UUID ordenId, EstadoOrden desde, EstadoOrden hacia, String motivo) {
+		return Boolean.TRUE.equals(tx.execute(s -> {
+			if (ordenRepo.cambiarEstado(ordenId, desde, hacia) == 0) {
+				return false;
+			}
+			historialRepo.save(OrdenHistorial.registrar(ordenId, desde, hacia, motivo));
+			return true;
+		}));
 	}
 
 	@Transactional(readOnly = true)

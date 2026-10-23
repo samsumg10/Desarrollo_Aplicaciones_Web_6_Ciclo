@@ -31,4 +31,16 @@ public interface ReservaRepository extends JpaRepository<Reserva, UUID> {
 	int cambiarEstado(@Param("id") UUID id,
 			@Param("desde") EstadoReserva desde,
 			@Param("hacia") EstadoReserva hacia);
+
+	/**
+	 * Confirma la reserva (queda CONFIRMADA) si esta EN_PAGO o ACTIVA. Devuelve 1 si cambio, 0 si no.
+	 *
+	 * Parte de EN_PAGO en el flujo normal; ACTIVA se admite porque el dinero ya se cobro y es la
+	 * verdad: el mensaje orden.pagada manda. Una reserva ya CONFIRMADA o LIBERADA no se toca.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("UPDATE Reserva r SET r.estado = com.teleticket.inventario.entity.EstadoReserva.CONFIRMADA "
+			+ "WHERE r.id = :id AND r.estado IN (com.teleticket.inventario.entity.EstadoReserva.EN_PAGO, "
+			+ "com.teleticket.inventario.entity.EstadoReserva.ACTIVA)")
+	int confirmar(@Param("id") UUID id);
 }
