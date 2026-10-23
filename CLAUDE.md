@@ -15,8 +15,8 @@ Plataforma de venta de entradas con API Gateway + 8 microservicios. Idioma: espa
 
 ## Estado
 
-Fases 0–6 hechas. **Siguiente: Fase 7** (`ms-cola`: sala de espera, sorteo y pases). Orden
-acordado hasta cumplir el OBJ 2: 7 → 8+9 → 10 → 14; luego 11, 16, 15. Se descartan 12, 13, 17
+Fases 0–7 hechas. **Siguiente: Bloque C = Fases 8+9 juntas** (`ms-ordenes` con Feign + `ms-pagos`).
+Orden acordado hasta cumplir el OBJ 2: 8+9 → 10 → 14; luego 11, 16, 15. Se descartan 12, 13, 17
 (ojo: sin la 12 las reservas sin pagar **no vencen** y retienen el stock; ver FASE-06).
 
 ## Datos que no se deducen del código
@@ -31,6 +31,9 @@ acordado hasta cumplir el OBJ 2: 7 → 8+9 → 10 → 14; luego 11, 16, 15. Se d
 - RabbitMQ: `localhost:5672`, consola `15672` (guest/guest). Conexión por `RABBIT_HOST/PORT/USER/PASSWORD`.
   Todo nombre de exchange, routing key o cola va en `libs/mensajeria-comun` (`Mensajeria.java`);
   los servicios publican solo por `PublicadorEventos`, nunca con `RabbitTemplate`.
+- `ms-cola`: la capacidad por ciclo se prueba con `$env:COLA_CAPACIDAD_POR_CICLO = "2"` en la consola
+  desde la que arrancas (también `COLA_CICLO_SEGUNDOS`, `COLA_PASE_MINUTOS`). Para ver el sorteo se
+  crea un evento con `inicioVenta` 2 minutos adelante (comandos en FASE-07).
 - Spring Boot 4.1.1 + Spring Cloud 2025.1.3 + **Jackson 3** (`tools.jackson`): la propiedad
   `spring.jackson.serialization.write-dates-as-timestamps` impide arrancar.
 - `spring.jpa.defer-datasource-initialization` debe ir en `false` (las tablas las crea `schema.sql`).

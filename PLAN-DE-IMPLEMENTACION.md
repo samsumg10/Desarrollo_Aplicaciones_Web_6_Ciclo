@@ -74,7 +74,7 @@ final de este documento (sección «Plantilla del documento de fase»).
 | **4** ✅ | `ms-usuarios`: registro y roles | CU-01 | **hecha** |
 | **5** ✅ | Librería común + primer mensaje RabbitMQ | CU-15 | **hecha** |
 | **6** ✅ | `ms-inventario`: stock y reservas | CU-05 (parte) | **hecha** |
-| **7** | `ms-cola`: sala de espera, sorteo y pases | CU-03, CU-04 | 3 |
+| **7** ✅ | `ms-cola`: sala de espera, sorteo y pases | CU-03, CU-04 | **hecha** |
 | **8** | `ms-ordenes`: crear orden con Feign | CU-05 (completo) | 3 |
 | **9** | `ms-pagos` + pagar la orden | CU-06 | 2 |
 | **10** | `ms-tickets`: emisión asíncrona firmada | CU-07 | 3 |
