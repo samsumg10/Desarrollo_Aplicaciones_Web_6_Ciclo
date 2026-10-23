@@ -1,0 +1,133 @@
+# =====================================================================
+#  Teleticket - infraestructura local
+#  Fase 1
+# =====================================================================
+#
+#  Levanta las tres piezas que los microservicios necesitan por detras:
+#
+#    postgres  -> las 9 bases de datos (una por microservicio)
+#    rabbitmq  -> la mensajeria asincrona + consola web
+#    mailhog   -> captura los correos sin enviarlos de verdad
+#
+#  USO (desde esta carpeta infra/):
+#     docker compose up -d        levantar
+#     docker compose ps           ver estado
+#     docker compose logs -f      ver logs
+#     docker compose down         apagar (los datos se conservan)
+#     docker compose down -v      apagar Y BORRAR los datos
+#
+#  En la fase 15 se agregaran aqui mismo los 9 microservicios.
+# =====================================================================
+
+name: teleticket
+
+services:
+
+  # -------------------------------------------------------------------
+  # PostgreSQL: una sola instancia con 9 bases de datos distintas.
+  #
+  # El diseno exige "database per service": ningun microservicio toca
+  # las tablas de otro. En desarrollo se usa una sola instancia por
+  # comodidad; en Kubernetes cada base podria tener su contenedor.
+  #
+  # OJO con el puerto: se expone en 5433, no en 5432, porque esta
+  # maquina ya tiene un PostgreSQL instalado ocupando el 5432.
+  # Dentro de la red de Docker se sigue usando el 5432.
+  # -------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: teleticket-postgres
+    # Se levanta solo, salvo que tú lo hayas detenido -> docs/definiciones/definiciones-de-codigo.md
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-teleticket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teleticket}
+      # Base de administracion. Las 9 del proyecto las crea el script
+      # de init-db/, que Postgres ejecuta solo la primera vez.
+      POSTGRES_DB: postgres
+      # Evita problemas de orden alfabetico con acentos en los nombres.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5433:5432"
+    volumes:
+      # Los datos sobreviven a 'docker compose down'.
+      - postgres-datos:/var/lib/postgresql/data
+      # Todo .sql de esta carpeta se ejecuta al crear el volumen.
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    # Pregunta cada cierto tiempo si ya esta listo -> docs/definiciones/definiciones-de-codigo.md
+    healthcheck:
+      # 'pg_isready' responde solo cuando Postgres acepta conexiones.
+      # En la fase 15 los microservicios esperaran este healthcheck.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-teleticket} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # -------------------------------------------------------------------
+  # RabbitMQ: el "cartero" del sistema.
+  #
+  # La etiqueta '-management' incluye la consola web, que es la
+  # herramienta mas util del proyecto: permite VER los mensajes
+  # pasando por las colas.
+  #
+  #   AMQP (lo usan los servicios) : 5672
+  #   Consola web (la usas tu)     : http://localhost:15672
+  #   Usuario / contrasena         : guest / guest
+  #
+  # El exchange 'teleticket.exchange' y las colas NO se crean aqui:
+  # los declara el codigo Java en la fase 5.
+  # -------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: teleticket-rabbitmq
+    # Se levanta solo, salvo que tú lo hayas detenido -> docs/definiciones/definiciones-de-codigo.md
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-datos:/var/lib/rabbitmq
+    # Pregunta cada cierto tiempo si ya esta listo -> docs/definiciones/definiciones-de-codigo.md
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # -------------------------------------------------------------------
+  # MailHog: servidor SMTP falso.
+  #
+  # ms-notificaciones (fase 13) le envia los correos como si fuera un
+  # servidor real, pero MailHog NO los manda a nadie: los guarda y los
+  # muestra en una pagina web. Asi se puede comprobar que el sistema
+  # notifica en cada cambio de estado sin spamear a nadie.
+  #
+  #   SMTP (lo usa ms-notificaciones) : 1025
+  #   Bandeja web (la usas tu)        : http://localhost:8025
+  #
+  # Nota: MailHog ya no recibe mantenimiento, pero funciona bien para
+  # esto y es el que nombra el informe del proyecto. La alternativa
+  # moderna es Mailpit (axllent/mailpit), con los mismos puertos.
+  # -------------------------------------------------------------------
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: teleticket-mailhog
+    # Se levanta solo, salvo que tú lo hayas detenido -> docs/definiciones/definiciones-de-codigo.md
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    # MailHog guarda los correos en memoria: al reiniciarlo se vacia
+    # la bandeja. Es lo que queremos para las pruebas.
+    environment:
+      MH_STORAGE: memory
+
+# Aqui viven los datos y sobreviven a 'down' -> docs/definiciones/definiciones-de-codigo.md
+volumes:
+  postgres-datos:
+  rabbitmq-datos:

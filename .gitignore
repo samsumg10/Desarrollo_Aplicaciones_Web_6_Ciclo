@@ -1,1 +1,28 @@
+# Configuracion interna del workspace de Eclipse
 /.metadata/
+
+# ---------------------------------------------------------------------
+# Red de seguridad para modulos futuros.
+#
+# Nota: los 9 microservicios YA traen su propio .gitignore generado por
+# Spring Initializr, que cubre target/, .settings, .classpath y .project.
+# Estas reglas son para las carpetas que se crearan en fases siguientes
+# (libs/mensajeria-comun en la fase 5, pruebas/ en la fase 16), que no
+# vendran con uno propio.
+# ---------------------------------------------------------------------
+target/
+
+# Eclipse / STS
+.classpath
+.project
+.settings/
+.apt_generated/
+.factorypath
+
+# IntelliJ / VS Code
+.idea/
+*.iml
+.vscode/
+
+# Logs locales
+*.log

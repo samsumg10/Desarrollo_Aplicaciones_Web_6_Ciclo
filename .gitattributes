@@ -1,0 +1,29 @@
+# =====================================================================
+#  Finales de linea
+# =====================================================================
+#
+#  Git guarda todo con LF, que es la convencion de los archivos originales
+#  generados por Spring Initializr. Sin este archivo, una herramienta que
+#  escriba con CRLF (varios editores y scripts en Windows lo hacen) produce
+#  un diff que toca TODAS las lineas del archivo y esconde el cambio real.
+#
+#  Para comprobar que un archivo esta en LF:
+#      git ls-files --eol <archivo>
+# =====================================================================
+
+# Por defecto: detectar texto y guardarlo con LF
+* text=auto eol=lf
+
+# Scripts de Windows: tambien LF (PowerShell los lee sin problema)
+*.ps1   text eol=lf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+
+# Binarios: Git no debe tocarlos
+*.jar   binary
+*.zip   binary
+*.png   binary
+*.jpg   binary
+*.pdf   binary
+*.docx  binary
+*.pptx  binary
