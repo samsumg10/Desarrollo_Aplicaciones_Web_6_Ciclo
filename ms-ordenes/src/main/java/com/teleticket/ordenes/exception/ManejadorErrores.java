@@ -15,39 +15,24 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-/**
- * Convierte las excepciones en JSON con el mismo formato que ms-eventos:
- *
- *   { "error": "PASE_NO_VALIDO", "mensaje": "...", "estado": 409,
- *     "ruta": "...", "requestId": "...", "fecha": "..." }
- */
 @RestControllerAdvice
 public class ManejadorErrores {
 
-	/** Lo pidieron y no existe -> 404. */
 	@ExceptionHandler(NoEncontradoException.class)
 	public ResponseEntity<Map<String, Object>> noEncontrado(NoEncontradoException ex, WebRequest req) {
 		return respuesta(HttpStatus.NOT_FOUND, "NO_ENCONTRADO", ex.getMessage(), req);
 	}
 
-	/** Falta o es invalida la cabecera X-Usuario-Id -> 401 (RN-04). */
 	@ExceptionHandler(NoAutenticadoException.class)
 	public ResponseEntity<Map<String, Object>> noAutenticado(NoAutenticadoException ex, WebRequest req) {
 		return respuesta(HttpStatus.UNAUTHORIZED, "NO_AUTENTICADO", ex.getMessage(), req);
 	}
 
-	/** Falta X-Pase-Compra -> 400. El gateway ya lo rechaza; esto cubre las llamadas directas. */
 	@ExceptionHandler(PaseRequeridoException.class)
 	public ResponseEntity<Map<String, Object>> paseRequerido(PaseRequeridoException ex, WebRequest req) {
 		return respuesta(HttpStatus.BAD_REQUEST, "PASE_REQUERIDO", ex.getMessage(), req);
 	}
 
-	/**
-	 * Un servicio del que depende la orden no respondio -> 503.
-	 *
-	 * El detalle (cual servicio, por que) se registra en el log; al comprador se le dice
-	 * que reintente, porque su pase ya se devolvio.
-	 */
 	@ExceptionHandler(ServicioNoDisponibleException.class)
 	public ResponseEntity<Map<String, Object>> servicioNoDisponible(ServicioNoDisponibleException ex, WebRequest req) {
 		System.err.println("[ms-ordenes] " + ex.getMessage() + (ex.getCause() != null ? " <- " + ex.getCause() : ""));
@@ -56,7 +41,6 @@ public class ManejadorErrores {
 						.formatted(ex.getServicio()), req);
 	}
 
-	/** La pasarela rechazo la tarjeta -> 402. La orden sigue RESERVADA: puede reintentar con otra. */
 	@ExceptionHandler(PagoRechazadoException.class)
 	public ResponseEntity<Map<String, Object>> pagoRechazado(PagoRechazadoException ex, WebRequest req) {
 		return respuesta(HttpStatus.PAYMENT_REQUIRED, "PAGO_RECHAZADO",
@@ -64,7 +48,6 @@ public class ManejadorErrores {
 				req);
 	}
 
-	/** ms-pagos no respondio y no se sabe si cobro -> 503. Reintentar es seguro (ms-pagos es idempotente). */
 	@ExceptionHandler(PagoNoConfirmadoException.class)
 	public ResponseEntity<Map<String, Object>> pagoNoConfirmado(PagoNoConfirmadoException ex, WebRequest req) {
 		System.err.println("[ms-ordenes] " + ex.getMessage() + (ex.getCause() != null ? " <- " + ex.getCause() : ""));
@@ -73,13 +56,11 @@ public class ManejadorErrores {
 						+ "vuelve a intentar con la misma en unos segundos y no se te cobrara dos veces.", req);
 	}
 
-	/** Una regla del negocio lo prohibe (pase invalido, sin stock, maximo excedido...) -> 409. */
 	@ExceptionHandler(ReglaNegocioException.class)
 	public ResponseEntity<Map<String, Object>> reglaNegocio(ReglaNegocioException ex, WebRequest req) {
 		return respuesta(HttpStatus.CONFLICT, ex.getCodigo(), ex.getMessage(), req);
 	}
 
-	/** Fallaron las validaciones del DTO -> 400, con la lista campo por campo. */
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, Object>> validacion(MethodArgumentNotValidException ex, WebRequest req) {
 		Map<String, String> campos = new LinkedHashMap<>();
@@ -92,30 +73,23 @@ public class ManejadorErrores {
 		return ResponseEntity.badRequest().body(cuerpo);
 	}
 
-	/** JSON mal formado o tipos incorrectos -> 400 (sin esto caeria en el 500 generico). */
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<Map<String, Object>> jsonInvalido(HttpMessageNotReadableException ex, WebRequest req) {
 		return respuesta(HttpStatus.BAD_REQUEST, "JSON_INVALIDO",
 				"El cuerpo de la peticion no es un JSON valido", req);
 	}
 
-	/** Un UUID escrito mal en la ruta -> 400. */
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	public ResponseEntity<Map<String, Object>> parametroInvalido(MethodArgumentTypeMismatchException ex, WebRequest req) {
 		return respuesta(HttpStatus.BAD_REQUEST, "PARAMETRO_INVALIDO",
 				"El parametro '%s' no tiene un formato valido".formatted(ex.getName()), req);
 	}
 
-	/** Una ruta que no existe -> 404 (sin esto caeria en el 500 generico). */
 	@ExceptionHandler(NoResourceFoundException.class)
 	public ResponseEntity<Map<String, Object>> rutaInexistente(NoResourceFoundException ex, WebRequest req) {
 		return respuesta(HttpStatus.NOT_FOUND, "RUTA_INEXISTENTE", "No existe esa ruta", req);
 	}
 
-	/**
-	 * Cualquier otra cosa -> 500. El detalle tecnico se registra en el log y no
-	 * se expone al cliente.
-	 */
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<Map<String, Object>> inesperado(Exception ex, WebRequest req) {
 		System.err.println("[ms-ordenes] Error inesperado: " + ex);
@@ -123,8 +97,6 @@ public class ManejadorErrores {
 		return respuesta(HttpStatus.INTERNAL_SERVER_ERROR, "ERROR_INTERNO",
 				"Ocurrio un error inesperado. Reporta el requestId de esta respuesta.", req);
 	}
-
-	// -----------------------------------------------------------------
 
 	private ResponseEntity<Map<String, Object>> respuesta(HttpStatus estado, String codigo,
 			String mensaje, WebRequest req) {

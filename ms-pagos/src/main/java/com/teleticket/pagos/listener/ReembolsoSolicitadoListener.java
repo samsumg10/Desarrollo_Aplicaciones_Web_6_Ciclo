@@ -16,10 +16,6 @@ import com.teleticket.mensajeria.mensajes.ReembolsoSolicitado;
 import com.teleticket.pagos.exception.MensajeInvalidoException;
 import com.teleticket.pagos.service.ReembolsoService;
 
-/**
- * Recibe reembolso.solicitado y devuelve el dinero (fase 11). Mismo patron de ack manual que los demas
- * listeners: el mensaje se confirma solo despues de guardar el reembolso y de que pago.reembolsado quede publicado.
- */
 @Component
 public class ReembolsoSolicitadoListener {
 
@@ -40,12 +36,10 @@ public class ReembolsoSolicitadoListener {
 			log.info("reembolso.solicitado {} {}", sobre.eventoId(), devuelto ? "procesado" : "sin cambios");
 
 		} catch (MensajeInvalidoException e) {
-			// Reintentarlo no lo arregla. Se descarta (requeue=false) para no entrar en un bucle.
 			log.error("Mensaje invalido, se descarta: {}", e.getMessage());
 			canal.basicReject(entrega, false);
 
 		} catch (Exception e) {
-			// Fallo pasajero (base de datos o broker caidos): vuelve a la cola para reintentarlo.
 			log.error("No se pudo procesar el mensaje, vuelve a la cola: {}", e.toString());
 			canal.basicNack(entrega, false, true);
 		}

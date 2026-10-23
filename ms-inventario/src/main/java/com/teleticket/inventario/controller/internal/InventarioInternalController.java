@@ -18,14 +18,6 @@ import com.teleticket.inventario.service.ReservaService;
 
 import jakarta.validation.Valid;
 
-/**
- * API INTERNA de ms-inventario: solo la llama ms-ordenes (por Feign, fase 8).
- *
- * ms-inventario no tiene API publica (seccion 8.4). Estas rutas no estan en el
- * API Gateway: solo se alcanzan por el puerto directo (8084). Esa ausencia de
- * ruta es la medida de seguridad: un comprador no puede reservar saltandose la
- * cola de espera y el pase de compra.
- */
 @RestController
 @RequestMapping("/internal")
 public class InventarioInternalController {
@@ -36,7 +28,6 @@ public class InventarioInternalController {
 		this.servicio = servicio;
 	}
 
-	/** Reserva N entradas de una zona. 201 con la reserva ACTIVA, o 409 si no hay stock. */
 	@PostMapping("/reservas")
 	public ResponseEntity<ReservaResponse> reservar(@Valid @RequestBody CrearReservaRequest req) {
 		ReservaResponse reserva = servicio.reservar(req);
@@ -45,19 +36,16 @@ public class InventarioInternalController {
 				.body(reserva);
 	}
 
-	/** Protege la reserva mientras se cobra, para que no venza a mitad del pago. */
 	@PutMapping("/reservas/{reservaId}/en-pago")
 	public ReservaResponse enPago(@PathVariable UUID reservaId) {
 		return servicio.marcarEnPago(reservaId);
 	}
 
-	/** La devuelve a ACTIVA si el pago se rechazo, para que el comprador pueda reintentar. */
 	@PutMapping("/reservas/{reservaId}/activar")
 	public ReservaResponse activar(@PathVariable UUID reservaId) {
 		return servicio.activar(reservaId);
 	}
 
-	/** Cuantas entradas quedan en la zona (un numero). */
 	@GetMapping("/zonas/{zonaId}/disponible")
 	public int disponible(@PathVariable UUID zonaId) {
 		return servicio.disponible(zonaId);

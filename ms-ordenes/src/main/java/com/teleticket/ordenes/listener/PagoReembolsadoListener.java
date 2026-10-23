@@ -16,10 +16,6 @@ import com.teleticket.mensajeria.mensajes.PagoReembolsado;
 import com.teleticket.ordenes.exception.MensajeInvalidoException;
 import com.teleticket.ordenes.service.ReembolsoService;
 
-/**
- * Recibe pago.reembolsado, deja la orden REEMBOLSADA y anuncia orden.reembolsada (fase 11). Ack manual: se
- * confirma solo despues de guardar el estado y de que el broker confirme el anuncio.
- */
 @Component
 public class PagoReembolsadoListener {
 
@@ -40,12 +36,10 @@ public class PagoReembolsadoListener {
 			log.info("pago.reembolsado {} {}", sobre.eventoId(), cambio ? "procesado" : "sin cambios");
 
 		} catch (MensajeInvalidoException e) {
-			// Reintentarlo no lo arregla. Se descarta (requeue=false) para no entrar en un bucle.
 			log.error("Mensaje invalido, se descarta: {}", e.getMessage());
 			canal.basicReject(entrega, false);
 
 		} catch (Exception e) {
-			// Fallo pasajero (base de datos o broker caidos): vuelve a la cola para reintentarlo.
 			log.error("No se pudo procesar el mensaje, vuelve a la cola: {}", e.toString());
 			canal.basicNack(entrega, false, true);
 		}

@@ -15,12 +15,6 @@ import com.teleticket.cola.service.PaseService;
 
 import jakarta.validation.Valid;
 
-/**
- * API INTERNA de ms-cola: solo la llama ms-ordenes (por Feign, fase 8).
- *
- * No tiene ruta en el API Gateway: solo se alcanza por el puerto directo (8083).
- * Esa ausencia es la medida de seguridad: un comprador no puede consumir pases.
- */
 @RestController
 @RequestMapping("/internal")
 public class PaseInternalController {
@@ -31,20 +25,12 @@ public class PaseInternalController {
 		this.servicio = servicio;
 	}
 
-	/**
-	 * Consume el pase. 200 la primera vez; 409 PASE_NO_VALIDO si no existe, es ajeno,
-	 * es de otro evento (si se indica eventoId), ya se uso o vencio.
-	 */
 	@PostMapping("/pases/{codigo}/consumir")
 	public PaseConsumidoResponse consumir(@PathVariable UUID codigo,
 			@Valid @RequestBody ConsumirPaseRequest req) {
 		return servicio.consumir(codigo, req.usuarioId(), req.eventoId());
 	}
 
-	/**
-	 * Devuelve un pase USADO a VIGENTE (compensacion de ms-ordenes). 200, o 409
-	 * PASE_NO_DEVOLVIBLE si no esta usado, es ajeno o ya vencio.
-	 */
 	@PostMapping("/pases/{codigo}/devolver")
 	public PaseConsumidoResponse devolver(@PathVariable UUID codigo,
 			@Valid @RequestBody DevolverPaseRequest req) {

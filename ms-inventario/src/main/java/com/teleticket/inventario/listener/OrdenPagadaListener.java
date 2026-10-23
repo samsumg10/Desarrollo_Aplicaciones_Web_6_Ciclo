@@ -16,10 +16,6 @@ import com.teleticket.mensajeria.Mensajeria;
 import com.teleticket.mensajeria.SobreMensaje;
 import com.teleticket.mensajeria.mensajes.OrdenPagada;
 
-/**
- * Recibe orden.pagada y confirma la reserva. Mismo patron de ack manual que EventoPublicadoListener:
- * primero se guarda en la base de datos y solo despues se confirma a RabbitMQ.
- */
 @Component
 public class OrdenPagadaListener {
 
@@ -40,12 +36,10 @@ public class OrdenPagadaListener {
 			log.info("orden.pagada {} {}", sobre.eventoId(), confirmada ? "procesado" : "sin cambios");
 
 		} catch (MensajeInvalidoException e) {
-			// Reintentarlo no lo arregla. Se descarta (requeue=false) para no entrar en un bucle.
 			log.error("Mensaje invalido, se descarta: {}", e.getMessage());
 			canal.basicReject(entrega, false);
 
 		} catch (Exception e) {
-			// Fallo pasajero (base de datos caida, por ejemplo): vuelve a la cola para reintentarlo.
 			log.error("No se pudo procesar el mensaje, vuelve a la cola: {}", e.toString());
 			canal.basicNack(entrega, false, true);
 		}

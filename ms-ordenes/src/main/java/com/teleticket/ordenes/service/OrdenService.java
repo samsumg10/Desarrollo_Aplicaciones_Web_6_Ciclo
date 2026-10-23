@@ -48,26 +48,6 @@ import com.teleticket.ordenes.repository.OrdenRepository;
 
 import feign.FeignException;
 
-/**
- * Crear y consultar ordenes (CU-05).
- *
- * Crear una orden es una orquestacion de TRES servicios, sin transaccion que las abarque:
- * cada uno es dueno de su base de datos y no existe una transaccion distribuida. Por eso
- * el orden de los pasos importa, y cada uno que cambia algo tiene su compensacion.
- *
- *   1. ms-eventos   precio, maximo y venta abierta     solo LEE        nada que deshacer
- *   2. ms-cola      consumir el pase                   CAMBIA (USADO)  se deshace: devolverPase
- *   3. ms-inventario reservar el stock                 CAMBIA          idempotente por orden
- *   4. guardar la orden y su historial                 CAMBIA (local)  una transaccion local
- *
- * La regla que ordena todo: lo que solo lee va primero. Asi un error de negocio (zona
- * inexistente, venta cerrada, maximo excedido) se detecta ANTES de gastar el pase.
- *
- * Compensacion (la "nota honesta" del plan): si despues de consumir el pase algo falla
- * (sin stock, un servicio caido, un error al guardar), se DEVUELVE el pase en ms-cola
- * para que el comprador no pierda su turno. Se descarto la opcion de reservar el stock
- * antes de consumir el pase: sin pase valido cualquiera podria apartar entradas.
- */
 @Service
 public class OrdenService {
 
@@ -95,38 +75,23 @@ public class OrdenService {
 		this.tx = tx;
 	}
 
-	/**
-	 * Crea la orden de {@code usuarioId} con el pase indicado.
-	 *
-	 * No es @Transactional a proposito: mantener abierta una transaccion de base de datos
-	 * mientras se esperan tres llamadas HTTP agotaria las conexiones del pool en un pico.
-	 * La unica escritura local (orden + historial) va en su propia transaccion corta.
-	 */
 	public OrdenResponse crear(UUID usuarioId, String paseCabecera, CrearOrdenRequest req) {
 		UUID pase = leerPase(paseCabecera);
 
-		// Un pase, una orden. Se comprueba primero, entre otras cosas porque si ya hay una orden
-		// con este pase, devolver "el pase" en una compensacion posterior reabriria un pase gastado.
 		if (ordenRepo.existsByPaseCodigo(pase)) {
 			throw new PaseNoValidoException("Este pase ya se uso para crear una orden");
 		}
 
-		// 1. Solo lectura: precio, maximo por comprador y si la venta esta abierta.
 		ZonaInternaResponse zona = llamar("ms-eventos", () -> eventos.datosDeZona(req.eventoId(), req.zonaId()));
 		if (!zona.ventaAbierta()) {
 			throw new ReglaNegocioException("VENTA_CERRADA",
 					"La venta de este evento aun no esta abierta o ya termino");
 		}
-		// RN-05. Como cada persona tiene un solo pase por evento (un turno, un pase), el limite
-		// se comprueba contra esta orden: no puede haber otras anteriores del mismo evento.
 		if (req.cantidad() > zona.maxPorCliente()) {
 			throw new ReglaNegocioException("MAXIMO_EXCEDIDO",
 					"Maximo %d entradas por comprador".formatted(zona.maxPorCliente()));
 		}
 
-		// 2. Consumir el pase, exigiendo que sea de esta persona Y de este evento.
-		//    Si dice PASE_NO_VALIDO, no se consumio nada: se propaga sin mas.
-		//    Si el servicio no responde, no se sabe si lo consumio: se intenta devolver.
 		try {
 			llamar("ms-cola", () -> cola.consumirPase(pase.toString(), new ConsumirPaseRequest(usuarioId, req.eventoId())));
 		} catch (ServicioNoDisponibleException e) {
@@ -134,17 +99,12 @@ public class OrdenService {
 			throw e;
 		}
 
-		// 3 y 4. Desde aqui el pase esta gastado: cualquier fallo debe devolverlo.
 		try {
-			// El id de la orden se deriva del pase: reintentar con el mismo pase produce el mismo
-			// ordenId, y la reserva de ms-inventario (UNIQUE por orden) devuelve la misma sin
-			// descontar stock dos veces. Asi un reintento tras un timeout no deja stock huerfano.
 			UUID ordenId = UUID.nameUUIDFromBytes(("orden:" + pase).getBytes(StandardCharsets.UTF_8));
 			ReservaResponse reserva = llamar("ms-inventario", () -> inventario
 					.reservar(new CrearReservaRequest(ordenId, req.zonaId(), req.cantidad())));
 			return guardar(ordenId, usuarioId, req, zona, pase, reserva);
 		} catch (PaseNoValidoException e) {
-			// Otra peticion con el mismo pase termino antes y su orden ya existe: el pase le pertenece.
 			throw e;
 		} catch (RuntimeException e) {
 			devolverPase(pase, usuarioId);
@@ -152,7 +112,6 @@ public class OrdenService {
 		}
 	}
 
-	/** Orden + primera fila del historial, en una transaccion local corta. */
 	private OrdenResponse guardar(UUID ordenId, UUID usuarioId, CrearOrdenRequest req, ZonaInternaResponse zona,
 			UUID pase, ReservaResponse reserva) {
 		Orden orden = Orden.crear(ordenId, usuarioId, req.eventoId(), req.zonaId(), req.cantidad(), zona.precio(),
@@ -172,32 +131,11 @@ public class OrdenService {
 		}
 	}
 
-	/**
-	 * Paga una orden (CU-06). Tampoco es @Transactional: entre medias hay llamadas HTTP.
-	 *
-	 * <pre>
-	 *   1. validar            la orden es mia y esta RESERVADA (o PENDIENTE_PAGO: un reintento)
-	 *   2. inventario.enPago  la reserva no puede vencer mientras se cobra   (idempotente)
-	 *   3. RESERVADA -> PENDIENTE_PAGO
-	 *   4. pagos.cobrar       idempotente por orden
-	 *        APROBADO  -> PAGADA y se publica orden.pagada
-	 *        RECHAZADO -> inventario.activar + vuelve a RESERVADA, y 402
-	 *        sin respuesta -> se queda PENDIENTE_PAGO, y 503
-	 * </pre>
-	 *
-	 * Pagar es seguro de repetir. Por eso una orden que se queda en PENDIENTE_PAGO (ms-pagos no contesto)
-	 * se puede volver a pagar: ms-pagos devuelve el cobro que ya hizo en vez de cobrar de nuevo. Y una
-	 * orden ya PAGADA responde 200 con la orden, sin llamar a nadie.
-	 *
-	 * Lo que NO se hace cuando ms-pagos no responde es devolver la orden a RESERVADA: el cobro pudo
-	 * haberse hecho, y dejar la orden "sin pagar" con el dinero ya tomado seria peor que dejarla pendiente.
-	 */
 	public OrdenResponse pagar(UUID usuarioId, UUID ordenId, PagarRequest req, String requestId) {
 		Orden orden = ordenRepo.findById(ordenId)
 				.filter(o -> o.getUsuarioId().equals(usuarioId))
 				.orElseThrow(() -> new NoEncontradoException("No existe la orden " + ordenId));
 
-		// 1. Validar. El mismo error que una orden ajena (404) para no revelar que existe.
 		switch (orden.getEstado()) {
 			case PAGADA, EMITIDA -> {
 				return OrdenResponse.de(orden);
@@ -208,22 +146,18 @@ public class OrdenService {
 				}
 			}
 			case PENDIENTE_PAGO -> {
-				// Un reintento: el primer intento no llego a saberse como termino.
 			}
 			default -> throw new ReglaNegocioException("ORDEN_NO_PAGABLE",
 					"La orden esta %s y no se puede pagar".formatted(orden.getEstado()));
 		}
 
-		// 2. Proteger la reserva. Si vencio, ms-inventario responde 409 RESERVA_VENCIDA y aun no se toco nada.
 		llamar("ms-inventario", () -> inventario.enPago(orden.getReservaId()));
 
-		// 3. Marcar la orden. Si otra peticion ya la marco, da igual: ms-pagos decide quien cobra.
 		if (orden.getEstado() == EstadoOrden.RESERVADA) {
 			cambiarEstado(ordenId, EstadoOrden.RESERVADA, EstadoOrden.PENDIENTE_PAGO,
 					"Pago iniciado: reserva protegida mientras se cobra");
 		}
 
-		// 4. Cobrar.
 		PagoResponse pago;
 		try {
 			pago = llamar("ms-pagos", () -> pagos.cobrar(
@@ -240,7 +174,6 @@ public class OrdenService {
 		};
 	}
 
-	/** APROBADO -> PAGADA y se avisa. Solo publica quien hizo el cambio de estado, no quien llega tarde. */
 	private OrdenResponse aprobar(Orden orden, PagoResponse pago, String requestId) {
 		boolean cambio = cambiarEstado(orden.getId(), EstadoOrden.PENDIENTE_PAGO, EstadoOrden.PAGADA,
 				"Pago aprobado (referencia %s)".formatted(pago.referenciaPasarela()));
@@ -252,12 +185,6 @@ public class OrdenService {
 		return OrdenResponse.de(actual);
 	}
 
-	/**
-	 * RECHAZADO -> la reserva vuelve a ACTIVA y la orden a RESERVADA, para reintentar con otra tarjeta.
-	 *
-	 * Si ms-inventario no responde, la orden se queda en PENDIENTE_PAGO junto con su reserva EN_PAGO:
-	 * es un estado coherente, y el siguiente intento de pago lo retoma sin problema.
-	 */
 	private OrdenResponse rechazar(Orden orden, PagoResponse pago) {
 		String motivo = pago.motivoRechazo() != null ? pago.motivoRechazo() : "la pasarela no dio motivo";
 		try {
@@ -271,14 +198,6 @@ public class OrdenService {
 		throw new PagoRechazadoException(motivo);
 	}
 
-	/**
-	 * orden.pagada: ms-inventario confirma la reserva y (fase 10) ms-tickets emite las entradas.
-	 *
-	 * Se publica DESPUES de guardar PAGADA, para que quien reciba el mensaje encuentre la orden ya pagada.
-	 * Si el broker no confirma, el pago ya esta hecho y la orden PAGADA: no se le dice al comprador que
-	 * fallo, se deja el error en el log. Es el hueco que cierra el patron outbox (guardar el mensaje en la
-	 * misma transaccion y publicarlo despues), que queda fuera del alcance de las fases del plan.
-	 */
 	private void publicarOrdenPagada(Orden orden, String requestId) {
 		try {
 			publicador.publicar(Mensajeria.ORDEN_PAGADA, SobreMensaje.de(Mensajeria.ORDEN_PAGADA, requestId,
@@ -290,7 +209,6 @@ public class OrdenService {
 		}
 	}
 
-	/** Cambia el estado de la orden y deja la fila de auditoria, juntos. Devuelve false si otra peticion se adelanto. */
 	private boolean cambiarEstado(UUID ordenId, EstadoOrden desde, EstadoOrden hacia, String motivo) {
 		return Boolean.TRUE.equals(tx.execute(s -> {
 			if (ordenRepo.cambiarEstado(ordenId, desde, hacia) == 0) {
@@ -314,7 +232,6 @@ public class OrdenService {
 		return ordenRepo.findByUsuarioIdOrderByCreadaEnDesc(usuarioId).stream().map(OrdenResponse::de).toList();
 	}
 
-	/** Para otros servicios: la orden de cualquiera, con su historial completo. */
 	@Transactional(readOnly = true)
 	public OrdenInternaResponse interna(UUID ordenId) {
 		Orden orden = ordenRepo.findById(ordenId)
@@ -322,9 +239,6 @@ public class OrdenService {
 		return OrdenInternaResponse.de(orden, historialRepo.findByOrdenIdOrderByFechaAscIdAsc(ordenId));
 	}
 
-	// -----------------------------------------------------------------
-
-	/** Sin cabecera -> 400. Si no es un UUID no puede ser un pase real: es un pase invalido. */
 	private UUID leerPase(String cabecera) {
 		if (cabecera == null || cabecera.isBlank()) {
 			throw new PaseRequeridoException("Falta la cabecera X-Pase-Compra");
@@ -336,11 +250,6 @@ public class OrdenService {
 		}
 	}
 
-	/**
-	 * Ejecuta una llamada a otro servicio. Las excepciones de negocio que produce
-	 * ClienteErrorDecoder pasan tal cual; lo que lance Feign por si mismo (timeout, conexion
-	 * rechazada, respuesta ilegible) se convierte en "servicio no disponible".
-	 */
 	private <T> T llamar(String servicio, Supplier<T> llamada) {
 		try {
 			return llamada.get();
@@ -349,17 +258,11 @@ public class OrdenService {
 		}
 	}
 
-	/**
-	 * Compensacion: devuelve el pase consumido. Si tampoco esto funciona (por ejemplo,
-	 * ms-cola esta caido), el pase queda gastado y se deja constancia en el log para que
-	 * se revise a mano: es el unico caso que queda sin red de seguridad.
-	 */
 	private void devolverPase(UUID pase, UUID usuarioId) {
 		try {
 			cola.devolverPase(pase.toString(), new DevolverPaseRequest(usuarioId));
 			log.info("Pase {} devuelto al comprador {}: la orden no se pudo completar", pase, usuarioId);
 		} catch (RuntimeException e) {
-			// Si el fallo fue al CONSUMIR (no se sabe si llego), puede que no haya nada que devolver.
 			log.error("No se pudo devolver el pase {} del comprador {}: si ya estaba USADO, revisar a mano: {}",
 					pase, usuarioId, e.toString());
 		}

@@ -15,5 +15,4 @@ public class UsuarioDtoFallback implements UsuarioDtoUseCase {
         return List.of(); 
 	}
 
-
 }

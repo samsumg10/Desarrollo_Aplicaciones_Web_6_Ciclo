@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-/** Convierte las excepciones en JSON con el mismo formato que ms-eventos. */
 @RestControllerAdvice
 public class ManejadorErrores {
 
@@ -33,17 +32,12 @@ public class ManejadorErrores {
 		return resp(HttpStatus.UNAUTHORIZED, "NO_AUTENTICADO", ex.getMessage(), req);
 	}
 
-	/**
-	 * Dos registros simultaneos con el mismo DNI pasan la comprobacion previa a la vez;
-	 * la restriccion UNIQUE de la base rechaza al segundo y se traduce aqui a 409.
-	 */
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	public ResponseEntity<Map<String, Object>> integridad(DataIntegrityViolationException ex, WebRequest req) {
 		return resp(HttpStatus.CONFLICT, "DATOS_DUPLICADOS",
 				"Ya existe un usuario con ese DNI o ese correo", req);
 	}
 
-	/** JSON mal formado o tipos incorrectos -> 400 (sin esto caeria en el 500 generico). */
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<Map<String, Object>> jsonInvalido(HttpMessageNotReadableException ex, WebRequest req) {
 		return resp(HttpStatus.BAD_REQUEST, "JSON_INVALIDO",

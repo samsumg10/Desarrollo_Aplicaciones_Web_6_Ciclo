@@ -7,18 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * La pasarela de pagos de mentira (seccion 12 del documento de arquitectura).
- *
- * Decide por los ULTIMOS 4 digitos de la tarjeta, para poder probar cada caso a voluntad:
- *
- *   0000             rechazada
- *   9999             aprobada, pero tarda 5 segundos (para probar el timeout de quien llama)
- *   cualquier otra   aprobada
- *
- * Es el unico sitio que habria que cambiar para usar una pasarela real: el resto de
- * ms-pagos solo ve un ResultadoPasarela.
- */
 @Component
 public class PasarelaSimulada {
 

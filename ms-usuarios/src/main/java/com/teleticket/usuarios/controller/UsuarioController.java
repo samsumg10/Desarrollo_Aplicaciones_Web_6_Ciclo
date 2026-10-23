@@ -18,13 +18,6 @@ import com.teleticket.usuarios.service.UsuarioService;
 
 import jakarta.validation.Valid;
 
-/**
- * API publica (CU-01). Ruta base /api/usuarios: el gateway reenvia la ruta completa.
- *
- * Mientras no exista Spring Security, la identidad llega en la cabecera X-Usuario-Id
- * y los servicios confian en ella (seccion 4.3 del diseno). Cuando llegue el JWT, el
- * gateway escribira esa misma cabecera y este controlador no cambiara.
- */
 @RestController
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
@@ -41,7 +34,6 @@ public class UsuarioController {
 		return ResponseEntity.created(URI.create("/api/usuarios/" + creado.id())).body(creado);
 	}
 
-	/** Datos del usuario identificado por X-Usuario-Id. Sin cabecera -> 401. */
 	@GetMapping("/me")
 	public UsuarioResponse yo(@RequestHeader(value = "X-Usuario-Id", required = false) String usuarioId) {
 		if (usuarioId == null || usuarioId.isBlank()) {

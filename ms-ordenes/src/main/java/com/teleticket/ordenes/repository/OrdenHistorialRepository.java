@@ -7,9 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.teleticket.ordenes.entity.OrdenHistorial;
 
-/**
- * Acceso a la tabla orden_historial.
- */
 public interface OrdenHistorialRepository extends JpaRepository<OrdenHistorial, Long> {
 
 	List<OrdenHistorial> findByOrdenIdOrderByFechaAscIdAsc(UUID ordenId);

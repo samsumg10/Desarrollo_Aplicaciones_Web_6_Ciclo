@@ -17,20 +17,6 @@ import com.teleticket.mensajeria.mensajes.OrdenPagada;
 import com.teleticket.teletickets.exception.MensajeInvalidoException;
 import com.teleticket.teletickets.service.EmisionService;
 
-/**
- * Recibe orden.pagada y emite las entradas, con reintentos de espera creciente (RN-08).
- *
- * Mismo patron de ack manual que ms-inventario: el mensaje se confirma solo DESPUES de emitir y anunciar.
- *
- * Reintentos: si la emision falla se vuelve a intentar hasta {@code reintentos} veces, esperando
- * 1 s, 2 s, 4 s (la espera se duplica). Los reintentos los hace el propio listener y no un
- * requeue en RabbitMQ: un requeue devolveria el mensaje al instante, sin espera, y lo martillaria contra
- * un ms-eventos que quizas esta arrancando.
- *
- * Agotados los reintentos (o ante un mensaje invalido) el mensaje se rechaza sin volver a la cola: como
- * tickets.orden-pagada tiene un DLX (fase 11), RabbitMQ lo reenvia a tickets.orden-pagada.dlq, donde lo recoge
- * EmisionFallidaListener para iniciar el reembolso. Ya no se pierde: es el cierre de RN-08.
- */
 @Component
 public class OrdenPagadaListener {
 
@@ -57,25 +43,21 @@ public class OrdenPagadaListener {
 			log.info("orden.pagada {} {}", sobre.eventoId(), emitido ? "procesado" : "sin cambios");
 
 		} catch (MensajeInvalidoException e) {
-			// Reintentarlo no lo arregla. Va a la DLQ (requeue=false) para no entrar en un bucle.
 			log.error("Mensaje invalido, va a la cola de mensajes muertos: {}", e.getMessage());
 			canal.basicReject(entrega, false);
 
 		} catch (InterruptedException e) {
-			// El servicio se esta apagando. Sin ack, RabbitMQ devuelve el mensaje y se emite al volver.
 			Thread.currentThread().interrupt();
 			log.warn("Apagado durante la emision: el mensaje {} vuelve a la cola", sobre.eventoId());
 			canal.basicNack(entrega, false, true);
 
 		} catch (Exception e) {
-			// Sin reintentos: reject sin requeue = a la DLQ, y de ahi a emision.fallida (fase 11).
 			log.error("EMISION FALLIDA tras {} reintentos, el mensaje {} va a la cola de mensajes muertos: {}", reintentos,
 					sobre != null ? sobre.eventoId() : null, e.toString());
 			canal.basicReject(entrega, false);
 		}
 	}
 
-	/** Intenta emitir; si falla, espera y reintenta. La ultima excepcion se propaga. */
 	private boolean emitirConReintentos(SobreMensaje<OrdenPagada> sobre) throws InterruptedException {
 		for (int intento = 0;; intento++) {
 			try {

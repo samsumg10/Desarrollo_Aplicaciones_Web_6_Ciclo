@@ -14,11 +14,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Una fila de auditoria: la orden paso de un estado a otro, por que y cuando.
- *
- * Solo se inserta. La primera fila de cada orden tiene estadoAnterior null.
- */
 @Entity
 @Table(name = "orden_historial")
 @Getter

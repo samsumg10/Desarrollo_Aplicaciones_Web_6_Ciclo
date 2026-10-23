@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.teleticket.usuarios.dto.ContactoResponse;
 import com.teleticket.usuarios.service.UsuarioService;
 
-/** API INTERNA: sin ruta en el gateway. La usara ms-notificaciones por Feign (fase 13). */
 @RestController
 @RequestMapping("/internal/usuarios")
 public class UsuarioInternalController {

@@ -12,12 +12,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Un comprador o miembro del personal (CU-01).
- *
- * Guarda el HASH de la contrasena, nunca la contrasena. No tiene setters:
- * un usuario creado no se modifica desde fuera.
- */
 @Entity
 @Table(name = "usuario")
 @Getter

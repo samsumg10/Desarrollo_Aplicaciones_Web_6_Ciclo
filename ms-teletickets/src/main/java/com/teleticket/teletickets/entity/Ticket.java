@@ -12,12 +12,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Una entrada firmada.
- *
- * Solo se lee con JPA: se crea con TicketRepository.emitir, un INSERT ... ON CONFLICT DO NOTHING, para que
- * UNIQUE(orden_id, numero) haga idempotente la emision sin lanzar excepciones.
- */
 @Entity
 @Table(name = "ticket")
 @Getter
@@ -30,7 +24,6 @@ public class Ticket {
 	@Column(name = "orden_id", nullable = false)
 	private UUID ordenId;
 
-	/** La entrada 1, 2... N de su orden. */
 	@Column(nullable = false)
 	private Integer numero;
 
@@ -43,15 +36,12 @@ public class Ticket {
 	@Column(name = "zona_id", nullable = false)
 	private UUID zonaId;
 
-	/** El UUID que va en el QR. */
 	@Column(nullable = false)
 	private UUID codigo;
 
-	/** HMAC-SHA256(codigo + eventoId, clave secreta) en hexadecimal. */
 	@Column(nullable = false, length = 64)
 	private String firma;
 
-	/** Copia de las condiciones del evento al emitir: lo informado en la compra es lo que se valida en la puerta. */
 	@Column(name = "condiciones_ingreso", nullable = false, columnDefinition = "TEXT")
 	private String condicionesIngreso;
 

@@ -6,9 +6,6 @@ import java.util.UUID;
 
 import com.teleticket.eventos.entity.Evento;
 
-/**
- * El evento tal como lo ve el cliente, con sus zonas.
- */
 public record EventoResponse(
 		UUID id,
 		String nombre,
@@ -24,7 +21,6 @@ public record EventoResponse(
 		Instant publicadoEn,
 		List<ZonaResponse> zonas) {
 
-	/** Convierte la entidad de la base de datos en la respuesta de la API. */
 	public static EventoResponse de(Evento e) {
 		return new EventoResponse(
 				e.getId(),

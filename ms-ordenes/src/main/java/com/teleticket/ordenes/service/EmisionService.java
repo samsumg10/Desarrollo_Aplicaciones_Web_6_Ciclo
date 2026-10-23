@@ -15,13 +15,6 @@ import com.teleticket.ordenes.exception.MensajeInvalidoException;
 import com.teleticket.ordenes.repository.OrdenHistorialRepository;
 import com.teleticket.ordenes.repository.OrdenRepository;
 
-/**
- * Marca la orden como EMITIDA a partir del mensaje tickets.emitidos (CU-07, fase 10).
- *
- * Es la logica del consumidor, separada del listener. No necesita una tabla de mensajes procesados:
- * PAGADA -> EMITIDA es un UPDATE condicional, asi que un mensaje repetido encuentra la orden ya EMITIDA y
- * no cambia nada (el mismo criterio que usa pagar en OrdenService).
- */
 @Service
 public class EmisionService {
 
@@ -35,12 +28,6 @@ public class EmisionService {
 		this.historialRepo = historialRepo;
 	}
 
-	/**
-	 * PAGADA -> EMITIDA, con su fila de historial, en una sola transaccion.
-	 *
-	 * @return true si este mensaje cambio la orden, false si ya estaba EMITIDA o ya no esta PAGADA
-	 * @throws MensajeInvalidoException si el mensaje no trae la orden o la orden no existe
-	 */
 	@Transactional
 	public boolean marcarEmitida(SobreMensaje<TicketsEmitidos> sobre) {
 		if (sobre == null || sobre.datos() == null || sobre.datos().ordenId() == null) {
@@ -54,7 +41,6 @@ public class EmisionService {
 						"tickets.emitidos apunta a la orden %s, que no existe".formatted(ordenId)))
 				.getEstado();
 
-		// Fase 11: una orden REEMBOLSADA (o EXPIRADA) es final. Un tickets.emitidos tardio no la resucita.
 		if (!estado.puedePasarA(EstadoOrden.EMITIDA)) {
 			if (estado == EstadoOrden.EMITIDA) {
 				log.info("La orden {} ya estaba EMITIDA: sin cambios", ordenId);
@@ -73,7 +59,6 @@ public class EmisionService {
 			return true;
 		}
 
-		// 0 filas: ya estaba EMITIDA (mensaje repetido) o esta en otro estado (por ejemplo REEMBOLSADA).
 		if (estado == EstadoOrden.EMITIDA) {
 			log.info("La orden {} ya estaba EMITIDA: sin cambios", ordenId);
 		} else {

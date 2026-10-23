@@ -21,24 +21,6 @@ import com.teleticket.teletickets.exception.MensajeInvalidoException;
 import com.teleticket.teletickets.repository.MensajeProcesadoRepository;
 import com.teleticket.teletickets.repository.TicketRepository;
 
-/**
- * Emite las entradas de una orden pagada (CU-07).
- *
- * <pre>
- *   1. condiciones   se piden a ms-eventos          solo LEE
- *   2. entradas      N filas firmadas               transaccion local corta
- *   3. tickets.emitidos se anuncia a ms-ordenes
- *   4. mensaje_procesado se anota el mensaje
- * </pre>
- *
- * No es @Transactional a proposito: el paso 1 es una llamada HTTP y no debe mantener abierta una conexion
- * de base de datos (igual que OrdenService en ms-ordenes). Cada paso que escribe tiene su propia transaccion.
- *
- * Es seguro de repetir, que es lo que permite reintentar sin miedo:
- *   - las entradas son idempotentes por UNIQUE(orden_id, numero): repetir no crea otras;
- *   - el mensaje se anota DESPUES de anunciarlo. Si el servicio se cae entre el paso 2 y el 3, la reentrega
- *     encuentra las entradas ya hechas, no crea mas, y completa el anuncio que faltaba.
- */
 @Service
 public class EmisionService {
 
@@ -64,14 +46,6 @@ public class EmisionService {
 		this.simularFallo = simularFallo;
 	}
 
-	/**
-	 * Emite y anuncia las entradas de la orden del mensaje.
-	 *
-	 * @return true si este mensaje emitio y anuncio las entradas, false si era un mensaje repetido
-	 * @throws MensajeInvalidoException si el mensaje no trae lo necesario (reintentarlo no lo arregla)
-	 * @throws RuntimeException cualquier otro fallo (ms-eventos caido, base de datos, broker): es pasajero y
-	 *         el listener reintenta
-	 */
 	public boolean emitir(SobreMensaje<OrdenPagada> sobre) {
 		validar(sobre);
 
@@ -82,32 +56,25 @@ public class EmisionService {
 
 		OrdenPagada orden = sobre.datos();
 
-		// 1. PRB-06: las condiciones se copian de ms-eventos a cada entrada.
 		CondicionesResponse condiciones = eventos.condiciones(orden.eventoId(), sobre.correlationId());
 		if (condiciones == null || condiciones.condicionesIngreso() == null || condiciones.condicionesIngreso().isBlank()) {
 			throw new IllegalStateException("ms-eventos no devolvio condiciones de ingreso para el evento " + orden.eventoId());
 		}
 
-		// 2. Las entradas.
 		List<UUID> ticketIds = tx.execute(s -> crearEntradas(orden, condiciones.condicionesIngreso()));
 
-		// Interruptor de la demo (fase 11): una caida entre guardar las entradas y anunciarlas. Las entradas ya
-		// estan guardadas, asi que ademas se ve como la saga las anula al reembolsar.
 		if (simularFallo) {
 			throw new IllegalStateException("Fallo simulado (teleticket.tickets.simular-fallo-emision=true)");
 		}
 
-		// 3. Avisar. Si el broker no confirma lanza PublicacionFallidaException y el listener reintenta.
 		publicador.publicar(Mensajeria.TICKETS_EMITIDOS, SobreMensaje.de(Mensajeria.TICKETS_EMITIDOS,
 				sobre.correlationId(),
 				new TicketsEmitidos(orden.ordenId(), orden.usuarioId(), orden.eventoId(), ticketIds)));
 
-		// 4. Anotar el mensaje.
 		tx.executeWithoutResult(s -> procesadosRepo.registrar(sobre.eventoId()));
 		return true;
 	}
 
-	/** Las entradas 1..N de la orden. Las que ya existan se dejan como estan. Devuelve los ids de todas. */
 	private List<UUID> crearEntradas(OrdenPagada orden, String condiciones) {
 		int nuevas = 0;
 		for (int numero = 1; numero <= orden.cantidad(); numero++) {
@@ -125,7 +92,6 @@ public class EmisionService {
 		return ids;
 	}
 
-	/** Un mensaje sin orden, evento o cantidad no se arregla reintentando: se rechaza. */
 	private void validar(SobreMensaje<OrdenPagada> sobre) {
 		if (sobre == null || sobre.eventoId() == null) {
 			throw new MensajeInvalidoException("El mensaje no trae eventoId");

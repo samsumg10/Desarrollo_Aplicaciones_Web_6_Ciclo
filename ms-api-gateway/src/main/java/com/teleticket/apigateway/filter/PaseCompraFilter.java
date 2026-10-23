@@ -15,22 +15,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-/**
- * Rechaza cualquier intento de crear una orden sin pase de compra.
- *
- * Esta es la PRIMERA de las dos barreras contra PRB-03 (saltarse la cola):
- *
- *   1. Esta: el Gateway exige que venga la cabecera X-Pase-Compra.
- *   2. La real (fase 8): ms-ordenes valida por Feign contra ms-cola que el
- *      pase exista, sea de ese usuario, no haya vencido y no se haya usado.
- *
- * Esta barrera sola no alcanza (cualquiera puede inventar un valor), pero
- * frena las peticiones obviamente invalidas antes de que lleguen al negocio.
- *
- * Solo se aplica a POST /api/ordenes, que es crear la orden. NO se aplica a
- * POST /api/ordenes/{id}/pagar, porque pagar una orden que ya existe no
- * necesita pase: el pase se consumio al crearla.
- */
 @Component
 @Order(2)
 public class PaseCompraFilter implements Filter {
@@ -54,10 +38,6 @@ public class PaseCompraFilter implements Filter {
 		chain.doFilter(request, response);
 	}
 
-	/**
-	 * Solo POST a /api/ordenes exactamente (con o sin barra final).
-	 * Las subrutas como /api/ordenes/{id}/pagar quedan fuera a proposito.
-	 */
 	private boolean esCrearOrden(HttpServletRequest peticion) {
 		if (!"POST".equalsIgnoreCase(peticion.getMethod())) {
 			return false;

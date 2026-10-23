@@ -6,7 +6,7 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>4.1.1</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 	<groupId>com.teleticket</groupId>
 	<artifactId>mensajeria-comun</artifactId>
@@ -17,22 +17,14 @@
 		<java.version>21</java.version>
 	</properties>
 	<dependencies>
-		<!-- RabbitTemplate, el conversor JSON y la autoconfiguracion de RabbitMQ.
-		     Al ser dependencia normal, los servicios que usan esta libreria la reciben
-		     de forma transitiva. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
-		<!-- Jackson 3 (tools.jackson): convierte los mensajes a JSON y de vuelta -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-jackson</artifactId>
 		</dependency>
 	</dependencies>
-
-	<!-- Sin spring-boot-maven-plugin a proposito: esto es una libreria, no una
-	     aplicacion. Si se declarara, 'package' intentaria empaquetarla como
-	     ejecutable y los demas servicios no podrian usar sus clases. -->
 
 </project>

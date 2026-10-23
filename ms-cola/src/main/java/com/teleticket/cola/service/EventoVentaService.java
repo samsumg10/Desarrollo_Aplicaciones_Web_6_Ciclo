@@ -12,12 +12,6 @@ import com.teleticket.cola.repository.VentaEventoRepository;
 import com.teleticket.mensajeria.SobreMensaje;
 import com.teleticket.mensajeria.mensajes.EventoPublicado;
 
-/**
- * Guarda la copia local del evento al recibir evento.publicado.
- *
- * Con esto la sala de espera de ese evento queda abierta y el sorteo
- * programado para su hora. ms-cola no vuelve a preguntar nada a ms-eventos.
- */
 @Service
 public class EventoVentaService {
 
@@ -34,16 +28,6 @@ public class EventoVentaService {
 		this.props = props;
 	}
 
-	/**
-	 * Idempotente: si el mensaje ya se proceso devuelve false sin hacer nada.
-	 *
-	 * Registrar el mensaje y guardar la copia van en una sola transaccion (mismo
-	 * criterio que en ms-inventario): si algo falla, el mensaje NO queda marcado
-	 * como procesado y se podra reintentar entero.
-	 *
-	 * @return true si se guardo la copia, false si era un mensaje repetido
-	 * @throws MensajeInvalidoException si el mensaje no trae lo necesario
-	 */
 	@Transactional
 	public boolean registrarEvento(SobreMensaje<EventoPublicado> sobre) {
 		validar(sobre);
@@ -54,8 +38,6 @@ public class EventoVentaService {
 		}
 
 		EventoPublicado evento = sobre.datos();
-		// Si el evento ya tenia copia (otro mensaje del mismo evento), no se toca: no se
-		// puede reabrir ni mover un sorteo.
 		int creada = ventaRepo.crearSiNoExiste(evento.id(), evento.nombre(), evento.inicioVenta(),
 				props.capacidadPorCiclo());
 		log.info("Evento {} ({}): {}; sorteo a las {}", evento.nombre(), evento.id(),
@@ -63,7 +45,6 @@ public class EventoVentaService {
 		return true;
 	}
 
-	/** Un mensaje sin id o sin hora de venta no se arregla reintentando: se rechaza. */
 	private void validar(SobreMensaje<EventoPublicado> sobre) {
 		if (sobre == null || sobre.eventoId() == null) {
 			throw new MensajeInvalidoException("El mensaje no trae eventoId");

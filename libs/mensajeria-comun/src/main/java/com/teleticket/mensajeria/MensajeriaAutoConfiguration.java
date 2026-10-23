@@ -17,17 +17,6 @@ import org.springframework.context.annotation.Bean;
 
 import tools.jackson.databind.json.JsonMapper;
 
-/**
- * Se activa sola en cualquier servicio que tenga esta libreria en el classpath
- * (ver META-INF/spring/...AutoConfiguration.imports). Deja listo:
- *
- *   - los dos exchanges (teleticket.exchange y teleticket.dlx),
- *   - el conversor a JSON para publicar y para @RabbitListener,
- *   - el PublicadorEventos,
- *   - la declaracion de exchanges y colas al arrancar.
- *
- * Las COLAS no se declaran aqui: cada servicio declara las suyas.
- */
 @AutoConfiguration(afterName = {
 		"org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration",
 		"org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration" })
@@ -36,15 +25,6 @@ public class MensajeriaAutoConfiguration {
 
 	private static final Logger log = LoggerFactory.getLogger(MensajeriaAutoConfiguration.class);
 
-	/**
-	 * Los mensajes viajan como JSON y no como objetos Java serializados: asi se
-	 * pueden leer en la consola de RabbitMQ y cualquier servicio, en cualquier
-	 * lenguaje, puede consumirlos.
-	 *
-	 * Spring Boot lo engancha solo al RabbitTemplate y a los @RabbitListener.
-	 * Se reutiliza el JsonMapper de Boot para que las fechas salgan igual que en
-	 * las respuestas REST (ISO-8601 UTC).
-	 */
 	@Bean
 	@ConditionalOnMissingBean(MessageConverter.class)
 	MessageConverter conversorJson(ObjectProvider<JsonMapper> jsonMapper) {
@@ -70,17 +50,6 @@ public class MensajeriaAutoConfiguration {
 		return new PublicadorRabbitMQ(plantilla);
 	}
 
-	/**
-	 * Declara exchanges y colas al arrancar, y no al primer mensaje.
-	 *
-	 * RabbitAdmin declara cuando se abre la primera conexion, y un servicio que
-	 * solo publica no la abre hasta su primer envio. Sin esto, las colas
-	 * no aparecerian en la consola hasta publicar algo.
-	 *
-	 * Si RabbitMQ esta caido no se aborta el arranque: el servicio debe seguir
-	 * atendiendo lo que no necesite al broker, y RabbitAdmin volvera a declarar
-	 * por su cuenta cuando la conexion se restablezca.
-	 */
 	@Bean
 	ApplicationRunner declararTopologiaAlArrancar(ObjectProvider<RabbitAdmin> admin) {
 		return args -> admin.ifAvailable(a -> {

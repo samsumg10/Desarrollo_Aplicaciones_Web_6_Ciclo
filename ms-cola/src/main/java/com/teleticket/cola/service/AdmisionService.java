@@ -23,12 +23,6 @@ import com.teleticket.mensajeria.PublicadorEventos;
 import com.teleticket.mensajeria.SobreMensaje;
 import com.teleticket.mensajeria.mensajes.TurnoHabilitado;
 
-/**
- * La admision controlada (CU-04): cada ciclo deja pasar a un grupo.
- *
- * Es lo que protege al resto del sistema (PRB-01): por muy larga que sea la cola,
- * solo 'capacidadPorCiclo' compradores cada 10 segundos llegan a ms-ordenes.
- */
 @Service
 public class AdmisionService {
 
@@ -52,7 +46,6 @@ public class AdmisionService {
 		this.tx = tx;
 	}
 
-	/** Un ciclo: vence lo que corresponda, habilita al siguiente grupo de cada evento y avisa. */
 	public void ejecutarCiclo() {
 		tx.executeWithoutResult(s -> {
 			int pases = paseRepo.vencerPasados();
@@ -73,10 +66,6 @@ public class AdmisionService {
 		publicarAvisos(avisos);
 	}
 
-	/**
-	 * Habilita a los siguientes N turnos de la cola y les crea su pase, todo en una
-	 * transaccion: nunca queda un turno HABILITADO sin pase.
-	 */
 	private List<TurnoHabilitado> habilitarSiguientes(UUID eventoId) {
 		VentaEvento venta = ventaRepo.findById(eventoId).orElseThrow();
 		List<Turno> turnos = turnoRepo.siguientesEnCola(eventoId, venta.getCapacidadPorCiclo());
@@ -96,16 +85,6 @@ public class AdmisionService {
 		return avisos;
 	}
 
-	/**
-	 * Publica turno.habilitado DESPUES de guardar, y sin que un fallo detenga la sala.
-	 *
-	 * Si RabbitMQ no responde, la admision NO se detiene: los turnos ya estan
-	 * habilitados y el comprador ve su pase al consultar su turno. Lo unico que se
-	 * pierde es el aviso por correo. Un servicio que no puede depender de nadie en
-	 * el peor momento tampoco puede depender del broker para dejar pasar gente.
-	 * Al primer fallo se abandonan los avisos restantes del ciclo: reintentarlos
-	 * uno por uno contra un broker caido bloquearia la tarea.
-	 */
 	private void publicarAvisos(List<TurnoHabilitado> avisos) {
 		for (TurnoHabilitado aviso : avisos) {
 			try {

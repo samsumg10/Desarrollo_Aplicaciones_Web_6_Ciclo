@@ -9,9 +9,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/**
- * Lo que el operador envia para agregar una zona a un evento (CU-14).
- */
 public record CrearZonaRequest(
 
 		@NotBlank(message = "El nombre de la zona es obligatorio")

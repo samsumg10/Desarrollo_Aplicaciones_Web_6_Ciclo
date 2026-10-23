@@ -1,4 +1,3 @@
--- ms-usuarios - esquema de db_usuarios (Fase 4). Idempotente: IF NOT EXISTS.
 CREATE TABLE IF NOT EXISTS usuario (
     id             UUID         PRIMARY KEY,
     dni            VARCHAR(8)   NOT NULL,
@@ -8,8 +7,6 @@ CREATE TABLE IF NOT EXISTS usuario (
     rol            VARCHAR(20)  NOT NULL,
     creado_en      TIMESTAMPTZ  NOT NULL,
 
-    -- Un DNI y un correo = una sola cuenta. Es la ultima defensa si dos registros
-    -- simultaneos pasan la comprobacion previa del servicio.
     CONSTRAINT uq_usuario_dni   UNIQUE (dni),
     CONSTRAINT uq_usuario_email UNIQUE (email),
     CONSTRAINT ck_usuario_dni   CHECK (dni ~ '^[0-9]{8}$'),

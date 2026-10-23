@@ -13,15 +13,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * El permiso de un solo uso para comprar (PRB-03).
- *
- * El codigo es un UUID aleatorio: no se puede adivinar ni armar un enlace de
- * compra directa. Esta ligado a UNA persona y a UN evento, y vence.
- *
- * Sin setters: el estado cambia solo con los UPDATE condicionales de
- * PaseCompraRepository (consumir, vencer).
- */
 @Entity
 @Table(name = "pase_compra")
 @Getter
@@ -50,7 +41,6 @@ public class PaseCompra {
 	@Column(name = "creado_en", nullable = false)
 	private Instant creadoEn;
 
-	/** Un pase VIGENTE para el turno, que vence en 'vigencia'. */
 	public static PaseCompra crear(Turno turno, Duration vigencia) {
 		PaseCompra p = new PaseCompra();
 		p.codigo = UUID.randomUUID();

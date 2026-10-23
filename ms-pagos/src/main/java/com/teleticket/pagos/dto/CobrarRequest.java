@@ -9,10 +9,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/**
- * Lo que ms-ordenes pide cobrar. No lleva una clave de idempotencia aparte: la clave ES el
- * ordenId, asi que no puede haber dos cobros de la misma orden.
- */
 public record CobrarRequest(
 
 		@NotNull(message = "El id de la orden es obligatorio")

@@ -9,31 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 import com.teleticket.inventario.entity.StockZona;
 
-/**
- * Acceso a la tabla stock_zona.
- *
- * Aqui estan las dos consultas que importan de todo el servicio. Las dos son
- * UN SOLO SQL, sin leer antes: por eso no necesitan bloqueos manuales.
- */
 public interface StockZonaRepository extends JpaRepository<StockZona, UUID> {
 
-	/**
-	 * Descuenta stock SOLO si alcanza. Es la defensa contra la sobreventa.
-	 *
-	 * Devuelve las filas afectadas: 1 = reservado, 0 = no habia stock suficiente
-	 * (o la zona no existe).
-	 *
-	 * Por que es segura: la condicion 'disponible >= :cantidad' y la resta
-	 * ocurren juntas, dentro de la base de datos. Si dos compradores piden las
-	 * ultimas 2 entradas a la vez, PostgreSQL bloquea la fila para el primero;
-	 * el segundo espera, vuelve a evaluar la condicion con el valor ya
-	 * descontado, y no la cumple: afecta 0 filas. Con el esquema inseguro
-	 * ("leo disponible, resto en Java, guardo") los dos habrian leido "2".
-	 *
-	 * 'flushAutomatically' vuelca antes los cambios pendientes de JPA, y
-	 * 'clearAutomatically' vacia despues la cache de entidades, que quedo
-	 * desactualizada porque este UPDATE no pasa por ella.
-	 */
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query(value = """
 			UPDATE stock_zona
@@ -44,14 +21,6 @@ public interface StockZonaRepository extends JpaRepository<StockZona, UUID> {
 			""", nativeQuery = true)
 	int descontar(@Param("zonaId") UUID zonaId, @Param("cantidad") int cantidad);
 
-	/**
-	 * Crea el stock de una zona, o no hace nada si ya existe.
-	 *
-	 * No se usa save(): con un id asignado a mano, save() hace un "merge" y
-	 * SOBRESCRIBIRIA el stock existente con el aforo, devolviendo al
-	 * inventario entradas que ya se vendieron. 'ON CONFLICT DO NOTHING' lo
-	 * impide, incluso si el mismo evento llegara con un mensaje distinto.
-	 */
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query(value = """
 			INSERT INTO stock_zona (zona_id, evento_id, total, disponible, version)
@@ -62,12 +31,6 @@ public interface StockZonaRepository extends JpaRepository<StockZona, UUID> {
 			@Param("eventoId") UUID eventoId,
 			@Param("aforo") int aforo);
 
-	/**
-	 * Devuelve entradas al stock (fase 11): el inverso de {@link #descontar}. Devuelve 1 si la zona existe.
-	 *
-	 * Solo se llama cuando una reserva acaba de pasar a LIBERADA, en la misma transaccion. Si por un error se
-	 * repusiera de mas, CHECK (disponible <= total) rechaza el UPDATE: nunca habra mas entradas que el aforo.
-	 */
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query(value = """
 			UPDATE stock_zona

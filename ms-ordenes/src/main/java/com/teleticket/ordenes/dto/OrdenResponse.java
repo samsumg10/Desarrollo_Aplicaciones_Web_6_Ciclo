@@ -6,14 +6,6 @@ import java.util.UUID;
 
 import com.teleticket.ordenes.entity.Orden;
 
-/**
- * La orden tal como la ve su comprador.
- *
- * No incluye el pase ni la reserva: el pase ya esta gastado y la reserva es un detalle
- * interno entre servicios.
- *
- * 'segundosParaPagar' es lo que le queda al comprador hasta 'venceEn' (nunca negativo).
- */
 public record OrdenResponse(
 		UUID id,
 		String codigo,

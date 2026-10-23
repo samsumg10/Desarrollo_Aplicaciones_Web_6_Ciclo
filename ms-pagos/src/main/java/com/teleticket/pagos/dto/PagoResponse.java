@@ -6,9 +6,6 @@ import java.util.UUID;
 
 import com.teleticket.pagos.entity.Pago;
 
-/**
- * Un pago tal como lo ve ms-ordenes. Nunca incluye la tarjeta completa, solo sus ultimos 4 digitos.
- */
 public record PagoResponse(
 		UUID id,
 		UUID ordenId,

@@ -6,7 +6,7 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>4.1.1</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 	<groupId>com.teleticket</groupId>
 	<artifactId>ms-api-gateway</artifactId>
@@ -31,18 +31,14 @@
 		<spring-cloud.version>2025.1.3</spring-cloud.version>
 	</properties>
 	<dependencies>
-		<!-- Servidor web embebido (Tomcat) + Spring MVC: sin esto no hay endpoints REST -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
-		<!-- Expone /actuator/health para saber si el servicio esta vivo -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
-		<!-- Fase 2: enrutamiento. La version la decide el BOM de Spring Cloud
-		     declarado mas abajo, por eso no se pone aqui. -->
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
@@ -60,8 +56,6 @@
 		</dependency>
 	</dependencies>
 
-	<!-- Deja fijada la version de Spring Cloud para las fases siguientes
-	     (Gateway en la fase 2, Feign en la fase 8). Todavia no se usa ninguna. -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>

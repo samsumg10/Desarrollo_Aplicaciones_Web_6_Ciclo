@@ -11,13 +11,6 @@ import com.teleticket.usuarios.entity.Rol;
 import com.teleticket.usuarios.entity.Usuario;
 import com.teleticket.usuarios.repository.UsuarioRepository;
 
-/**
- * Siembra 6 usuarios de prueba si la tabla esta vacia, para no registrarlos a mano en
- * cada fase. Los ids son fijos (0000...0001 a 0006) porque las pruebas de las fases
- * siguientes usan X-Usuario-Id con esos valores. Contrasena de todos: Teleticket123
- *
- * Se hace por codigo y no con data.sql para que el hash lo calcule BCrypt de verdad.
- */
 @Component
 @ConditionalOnProperty(name = "teleticket.usuarios.sembrar-datos", havingValue = "true")
 public class DatosIniciales implements CommandLineRunner {

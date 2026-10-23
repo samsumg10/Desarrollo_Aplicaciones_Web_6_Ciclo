@@ -8,10 +8,6 @@ import java.util.UUID;
 import com.teleticket.ordenes.entity.Orden;
 import com.teleticket.ordenes.entity.OrdenHistorial;
 
-/**
- * La orden completa, para otros servicios (ms-reclamos, fase 17): incluye al comprador,
- * el pase, la reserva y todo el historial de estados.
- */
 public record OrdenInternaResponse(
 		UUID id,
 		String codigo,
@@ -28,7 +24,6 @@ public record OrdenInternaResponse(
 		Instant creadaEn,
 		List<Cambio> historial) {
 
-	/** Una fila del historial. */
 	public record Cambio(String estadoAnterior, String estadoNuevo, String motivo, Instant fecha) {
 
 		static Cambio de(OrdenHistorial h) {

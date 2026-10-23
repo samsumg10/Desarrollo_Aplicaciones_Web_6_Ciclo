@@ -6,7 +6,7 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>4.1.1</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 	<groupId>com.teleticket</groupId>
 	<artifactId>ms-teletickets</artifactId>
@@ -31,41 +31,33 @@
 		<spring-cloud.version>2025.1.3</spring-cloud.version>
 	</properties>
 	<dependencies>
-		<!-- Servidor web embebido (Tomcat) + Spring MVC: sin esto no hay endpoints REST -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
-		<!-- Expone /actuator/health para saber si el servicio esta vivo -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- Fase 10: acceso a la base de datos con JPA -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
-		<!-- Driver de PostgreSQL. 'runtime' porque solo se necesita al ejecutar -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-		<!-- Fase 10: RabbitMQ. ms-tickets consume orden.pagada y publica tickets.emitidos -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
-		<!-- Libreria comun (libs/mensajeria-comun): sobre, DTO de mensajes y constantes.
-		     Hay que instalarla antes con 'mvnw install'. -->
 		<dependency>
 			<groupId>com.teleticket</groupId>
 			<artifactId>mensajeria-comun</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
-		<!-- Fase 10: Feign. Pide las condiciones de ingreso a ms-eventos -->
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
@@ -83,8 +75,6 @@
 		</dependency>
 	</dependencies>
 
-	<!-- Deja fijada la version de Spring Cloud para las fases siguientes
-	     (Gateway en la fase 2, Feign en la fase 8). Todavia no se usa ninguna. -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>

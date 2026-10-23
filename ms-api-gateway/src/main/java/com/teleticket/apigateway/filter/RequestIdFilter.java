@@ -17,23 +17,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
-/**
- * Pone un identificador unico a cada peticion que entra al sistema.
- *
- * Por que hace falta: una sola compra pasa por ms-cola, ms-ordenes,
- * ms-inventario, ms-pagos y ms-tickets. Si algo falla, hay que poder seguir
- * esa compra concreta por los logs de los 5 servicios. Con este identificador
- * basta buscar el mismo valor en todos.
- *
- * Si el cliente ya envia su propio X-Request-Id, se respeta. Si no, se genera
- * un UUID. El valor se agrega a la peticion que viaja al microservicio y
- * tambien se devuelve en la respuesta, para que el cliente lo vea.
- *
- * Corresponde a la medida correctiva 2 de Indecopi (corregir errores del
- * portal): sin trazabilidad no se puede corregir lo que no se puede seguir.
- */
 @Component
-@Order(1) // Primero este: el filtro del pase (orden 2) ya necesita el id en el log.
+@Order(1)
 public class RequestIdFilter implements Filter {
 
 	public static final String CABECERA = "X-Request-Id";
@@ -50,17 +35,11 @@ public class RequestIdFilter implements Filter {
 			requestId = UUID.randomUUID().toString();
 		}
 
-		// Que el cliente lo vea en la respuesta.
 		respuesta.setHeader(CABECERA, requestId);
 
-		// La peticion original es inmutable, asi que se envuelve en una copia
-		// que si expone la cabecera. Eso es lo que recibe el microservicio.
 		chain.doFilter(new PeticionConRequestId(peticion, requestId), respuesta);
 	}
 
-	/**
-	 * Envoltorio que agrega una cabecera a una peticion que no la traia.
-	 */
 	private static class PeticionConRequestId extends HttpServletRequestWrapper {
 
 		private final String requestId;

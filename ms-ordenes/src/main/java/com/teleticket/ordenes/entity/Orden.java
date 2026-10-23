@@ -13,12 +13,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Una compra: entradas de una zona, a un precio, reservadas para una persona.
- *
- * Sin setters: se crea ya completa y sus cambios de estado seran metodos con
- * nombre (fases 9 a 11), cada uno acompanado de su fila en orden_historial.
- */
 @Entity
 @Table(name = "orden")
 @Getter
@@ -28,7 +22,6 @@ public class Orden {
 	@Id
 	private UUID id;
 
-	/** El numero legible que ve el comprador. */
 	@Column(nullable = false, length = 20)
 	private String codigo;
 
@@ -44,7 +37,6 @@ public class Orden {
 	@Column(nullable = false)
 	private Integer cantidad;
 
-	/** El precio que vio el comprador. Se copia: un cambio posterior en ms-eventos no la afecta. */
 	@Column(name = "precio_unitario", nullable = false, precision = 10, scale = 2)
 	private BigDecimal precioUnitario;
 
@@ -55,22 +47,18 @@ public class Orden {
 	@Column(nullable = false, length = 20)
 	private EstadoOrden estado;
 
-	/** El pase de compra con el que se creo. UNIQUE: un pase, una orden. */
 	@Column(name = "pase_codigo", nullable = false)
 	private UUID paseCodigo;
 
-	/** La reserva de stock en ms-inventario. */
 	@Column(name = "reserva_id", nullable = false)
 	private UUID reservaId;
 
-	/** Hasta cuando puede pagar (es el vencimiento de la reserva). */
 	@Column(name = "vence_en", nullable = false)
 	private Instant venceEn;
 
 	@Column(name = "creada_en", nullable = false)
 	private Instant creadaEn;
 
-	/** Una orden nueva, RESERVADA. El total se calcula aqui para que nunca discrepe del precio. */
 	public static Orden crear(UUID id, UUID usuarioId, UUID eventoId, UUID zonaId, int cantidad,
 			BigDecimal precioUnitario, UUID paseCodigo, UUID reservaId, Instant venceEn) {
 		Orden o = new Orden();

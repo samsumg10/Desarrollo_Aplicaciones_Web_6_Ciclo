@@ -16,7 +16,6 @@ import com.teleticket.usuarios.exception.NoEncontradoException;
 import com.teleticket.usuarios.exception.ReglaNegocioException;
 import com.teleticket.usuarios.repository.UsuarioRepository;
 
-/** Reglas de CU-01 (registro). El login con JWT llega con Spring Security. */
 @Service
 public class UsuarioService {
 
@@ -30,7 +29,6 @@ public class UsuarioService {
 
 	@Transactional
 	public UsuarioResponse registrar(RegistroRequest req) {
-		// El correo se guarda en minusculas: Ana@x.com y ana@x.com son la misma cuenta.
 		String email = req.email().trim().toLowerCase(Locale.ROOT);
 
 		if (repo.existsByDni(req.dni())) {
@@ -40,7 +38,6 @@ public class UsuarioService {
 			throw new ReglaNegocioException("EMAIL_DUPLICADO", "Ya existe un usuario con ese correo");
 		}
 
-		// Siempre COMPRADOR: ver el comentario de RegistroRequest.
 		Usuario u = Usuario.crear(null, req.dni(), req.nombres().trim(), email,
 				encoder.encode(req.password()), Rol.COMPRADOR);
 		return UsuarioResponse.de(repo.save(u));

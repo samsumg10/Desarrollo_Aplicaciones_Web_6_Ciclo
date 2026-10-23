@@ -17,22 +17,6 @@ import com.teleticket.pagos.entity.Pago;
 import com.teleticket.pagos.exception.MensajeInvalidoException;
 import com.teleticket.pagos.repository.PagoRepository;
 
-/**
- * Devuelve el dinero de una orden (fase 11, RN-08): el paso de la saga que compensa al cobro de la fase 9.
- *
- * <pre>
- *   1. reembolso   INSERT en 'reembolso' + pago APROBADO -> REEMBOLSADO       una transaccion corta
- *   2. pago.reembolsado   se anuncia a ms-ordenes
- * </pre>
- *
- * Es seguro de repetir: UNIQUE(pago_id) impide devolver dos veces el mismo pago, y el anuncio se hace SIEMPRE,
- * incluso si el reembolso ya existia. Asi, si el servicio se cae entre 1 y 2, la reentrega no devuelve el dinero
- * otra vez pero si completa el anuncio que faltaba (la misma idea que ms-tickets en la fase 10).
- *
- * Por que el monto sale del pago y no del mensaje: lo que se devuelve es exactamente lo que se cobro.
- *
- * La pasarela es simulada y no tiene operacion de devolucion: el reembolso queda registrado en la base de datos.
- */
 @Service
 public class ReembolsoService {
 
@@ -50,11 +34,6 @@ public class ReembolsoService {
 		this.tx = tx;
 	}
 
-	/**
-	 * @return true si este mensaje devolvio el dinero, false si ya estaba devuelto (el anuncio se repite igual)
-	 * @throws MensajeInvalidoException si el mensaje no trae la orden o la orden no tiene un pago cobrado
-	 * @throws com.teleticket.mensajeria.PublicacionFallidaException si el broker no confirma (el listener reintenta)
-	 */
 	public boolean reembolsar(SobreMensaje<ReembolsoSolicitado> sobre) {
 		if (sobre == null || sobre.datos() == null || sobre.datos().ordenId() == null) {
 			throw new MensajeInvalidoException("El mensaje no trae la orden");

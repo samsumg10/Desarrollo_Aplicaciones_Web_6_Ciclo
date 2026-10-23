@@ -10,15 +10,6 @@ import com.teleticket.mensajeria.mensajes.OrdenReembolsada;
 import com.teleticket.teletickets.exception.MensajeInvalidoException;
 import com.teleticket.teletickets.repository.TicketRepository;
 
-/**
- * Anula las entradas de una orden reembolsada (fase 11): el ultimo paso de la saga en este servicio.
- *
- * Si la emision fallo antes de guardar ninguna entrada, no hay nada que anular y el mensaje es un no-op.
- * Si fallo despues (las entradas se guardaron pero no se anunciaron), el comprador ya recibio su dinero y
- * esas entradas no deben abrir ninguna puerta: pasan a ANULADO.
- *
- * Idempotente sin tabla de mensajes: solo se anulan las EMITIDO, asi que repetir no cambia nada.
- */
 @Service
 public class AnulacionService {
 
@@ -30,10 +21,6 @@ public class AnulacionService {
 		this.ticketRepo = ticketRepo;
 	}
 
-	/**
-	 * @return cuantas entradas se anularon
-	 * @throws MensajeInvalidoException si el mensaje no trae la orden
-	 */
 	@Transactional
 	public int anular(SobreMensaje<OrdenReembolsada> sobre) {
 		if (sobre == null || sobre.datos() == null || sobre.datos().ordenId() == null) {

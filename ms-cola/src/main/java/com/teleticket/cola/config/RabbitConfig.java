@@ -11,18 +11,6 @@ import org.springframework.context.annotation.Configuration;
 
 import com.teleticket.mensajeria.Mensajeria;
 
-/**
- * Las colas de ms-cola.
- *
- * cola.evento-publicado es la suya: la declara aqui aunque ms-eventos tambien lo
- * hace (fase 5), con los mismos parametros.
- *
- * notificaciones.todas NO es suya: es la cola de ms-notificaciones, que aun no
- * existe. Se declara aqui con su binding a turno.habilitado por la misma razon
- * que en la fase 5: sin una cola enlazada, el exchange descartaria el mensaje y
- * el publicador (mandatory) fallaria. Cuando ms-notificaciones la declare, tendra
- * que usar los mismos parametros (durable, sin argumentos).
- */
 @Configuration
 public class RabbitConfig {
 

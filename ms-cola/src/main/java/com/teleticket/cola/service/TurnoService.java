@@ -16,11 +16,6 @@ import com.teleticket.cola.repository.PaseCompraRepository;
 import com.teleticket.cola.repository.TurnoRepository;
 import com.teleticket.cola.repository.VentaEventoRepository;
 
-/**
- * Consulta de un turno: posicion, espera estimada y pase (CU-03, CU-04).
- *
- * El comprador la llama cada pocos segundos mientras espera.
- */
 @Service
 public class TurnoService {
 
@@ -37,10 +32,6 @@ public class TurnoService {
 		this.props = props;
 	}
 
-	/**
-	 * El turno de quien lo pide. Si el turno es de otra persona responde 404, igual
-	 * que si no existiera: no se revela que ese id es real.
-	 */
 	@Transactional(readOnly = true)
 	public TurnoResponse consultar(UUID turnoId, UUID usuarioId) {
 		Turno turno = turnoRepo.findById(turnoId)
@@ -49,7 +40,6 @@ public class TurnoService {
 		return vista(turno);
 	}
 
-	/** Arma lo que ve el comprador segun el estado de su turno. */
 	@Transactional(readOnly = true)
 	public TurnoResponse vista(Turno turno) {
 		VentaEvento venta = ventaRepo.findById(turno.getEventoId()).orElseThrow();
@@ -59,8 +49,6 @@ public class TurnoService {
 		if (turno.getEstado() == EstadoTurno.EN_COLA) {
 			delante = turnoRepo.countByEventoIdAndEstadoAndPosicionLessThan(
 					turno.getEventoId(), EstadoTurno.EN_COLA, turno.getPosicion());
-			// Cada ciclo habilita 'capacidad' turnos: los de adelante se van por grupos y
-			// el ciclo en que sales es el siguiente a todos esos grupos.
 			long ciclos = delante / venta.getCapacidadPorCiclo() + 1;
 			espera = ciclos * props.cicloSegundos();
 		}

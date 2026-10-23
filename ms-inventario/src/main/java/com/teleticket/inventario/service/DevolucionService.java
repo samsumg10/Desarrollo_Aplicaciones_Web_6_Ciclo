@@ -12,17 +12,6 @@ import com.teleticket.inventario.repository.StockZonaRepository;
 import com.teleticket.mensajeria.SobreMensaje;
 import com.teleticket.mensajeria.mensajes.OrdenReembolsada;
 
-/**
- * Devuelve el stock de una orden reembolsada (fase 11): la compensacion de la reserva de la fase 6.
- *
- * Marca la reserva LIBERADA y repone sus entradas en la zona, en UNA transaccion: las dos cosas o ninguna.
- * Se repone la cantidad que tiene la reserva en esta base de datos y no la del mensaje: es la misma que
- * se desconto al reservar.
- *
- * Idempotente sin tabla de mensajes: la reposicion solo ocurre si el UPDATE de liberar cambio una fila, es
- * decir, la primera vez. Un orden.reembolsada repetido (o dos a la vez) encuentra la reserva ya LIBERADA y
- * no repone nada.
- */
 @Service
 public class DevolucionService {
 
@@ -36,10 +25,6 @@ public class DevolucionService {
 		this.stockRepo = stockRepo;
 	}
 
-	/**
-	 * @return true si este mensaje devolvio las entradas al stock, false si la reserva ya estaba LIBERADA
-	 * @throws MensajeInvalidoException si el mensaje no trae la reserva o la reserva no existe
-	 */
 	@Transactional
 	public boolean devolverStock(SobreMensaje<OrdenReembolsada> sobre) {
 		if (sobre == null || sobre.datos() == null || sobre.datos().ordenId() == null

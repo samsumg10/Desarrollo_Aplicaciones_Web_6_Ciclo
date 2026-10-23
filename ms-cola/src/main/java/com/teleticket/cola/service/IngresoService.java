@@ -12,16 +12,9 @@ import com.teleticket.cola.exception.NoEncontradoException;
 import com.teleticket.cola.repository.TurnoRepository;
 import com.teleticket.cola.repository.VentaEventoRepository;
 
-/**
- * Entrar a la sala de espera (CU-03).
- *
- * Es lo que recibe la avalancha, asi que hace lo minimo: un turno por persona,
- * sin llamar a ningun otro servicio.
- */
 @Service
 public class IngresoService {
 
-	/** El turno y si se acaba de crear (para responder 201 o 200). */
 	public record Ingreso(TurnoResponse turno, boolean creado) {
 	}
 
@@ -38,19 +31,6 @@ public class IngresoService {
 		this.tx = tx;
 	}
 
-	/**
-	 * Crea el turno de la persona, o devuelve el que ya tenia (RN-04).
-	 *
-	 * Idempotente: volver a iniciar sesion, o entrar desde otro dispositivo,
-	 * devuelve el mismo turno y no se pierde el lugar.
-	 *
-	 * Si dos peticiones de la misma persona llegan a la vez, ambas pasan la
-	 * comprobacion previa y UNIQUE(evento_id, usuario_id) rechaza a la segunda.
-	 * Esa transaccion se deshace entera (tambien el contador de posicion, si lo
-	 * habia tomado) y aqui, ya fuera de ella, se devuelve el turno ganador.
-	 * Por eso se usa TransactionTemplate y no @Transactional: hay que poder
-	 * atrapar la excepcion DESPUES de que la transaccion termino.
-	 */
 	public Ingreso ingresar(UUID eventoId, UUID usuarioId) {
 		try {
 			return tx.execute(s -> ingresarEnTransaccion(eventoId, usuarioId));
@@ -72,8 +52,6 @@ public class IngresoService {
 					"No hay sala de espera para el evento " + eventoId + ": no existe o aun no se publico");
 		}
 
-		// RN-02: si el sorteo ya se hizo, se toma la ultima posicion + 1 y se nace EN_COLA.
-		// Si aun no (el UPDATE afecta 0 filas), se nace EN_SALA, sin posicion.
 		Integer posicion = null;
 		if (ventaRepo.tomarPosicionTardia(eventoId) == 1) {
 			posicion = ventaRepo.ultimaPosicion(eventoId);

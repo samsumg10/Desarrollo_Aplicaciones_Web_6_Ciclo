@@ -15,28 +15,19 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-/**
- * Convierte las excepciones en JSON con el mismo formato que ms-eventos:
- *
- *   { "error": "SIN_STOCK", "mensaje": "...", "estado": 409,
- *     "ruta": "...", "requestId": "...", "fecha": "..." }
- */
 @RestControllerAdvice
 public class ManejadorErrores {
 
-	/** Lo pidieron y no existe -> 404. */
 	@ExceptionHandler(NoEncontradoException.class)
 	public ResponseEntity<Map<String, Object>> noEncontrado(NoEncontradoException ex, WebRequest req) {
 		return respuesta(HttpStatus.NOT_FOUND, "NO_ENCONTRADO", ex.getMessage(), req);
 	}
 
-	/** Una regla del negocio lo prohibe (por ejemplo, no hay stock) -> 409. */
 	@ExceptionHandler(ReglaNegocioException.class)
 	public ResponseEntity<Map<String, Object>> reglaNegocio(ReglaNegocioException ex, WebRequest req) {
 		return respuesta(HttpStatus.CONFLICT, ex.getCodigo(), ex.getMessage(), req);
 	}
 
-	/** Fallaron las validaciones del DTO -> 400, con la lista campo por campo. */
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, Object>> validacion(MethodArgumentNotValidException ex, WebRequest req) {
 		Map<String, String> campos = new LinkedHashMap<>();
@@ -49,30 +40,23 @@ public class ManejadorErrores {
 		return ResponseEntity.badRequest().body(cuerpo);
 	}
 
-	/** JSON mal formado o tipos incorrectos -> 400 (sin esto caeria en el 500 generico). */
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<Map<String, Object>> jsonInvalido(HttpMessageNotReadableException ex, WebRequest req) {
 		return respuesta(HttpStatus.BAD_REQUEST, "JSON_INVALIDO",
 				"El cuerpo de la peticion no es un JSON valido", req);
 	}
 
-	/** Un UUID escrito mal en la ruta -> 400. */
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	public ResponseEntity<Map<String, Object>> parametroInvalido(MethodArgumentTypeMismatchException ex, WebRequest req) {
 		return respuesta(HttpStatus.BAD_REQUEST, "PARAMETRO_INVALIDO",
 				"El parametro '%s' no tiene un formato valido".formatted(ex.getName()), req);
 	}
 
-	/** Una ruta que no existe -> 404 (sin esto caeria en el 500 generico). */
 	@ExceptionHandler(NoResourceFoundException.class)
 	public ResponseEntity<Map<String, Object>> rutaInexistente(NoResourceFoundException ex, WebRequest req) {
 		return respuesta(HttpStatus.NOT_FOUND, "RUTA_INEXISTENTE", "No existe esa ruta", req);
 	}
 
-	/**
-	 * Cualquier otra cosa -> 500. El detalle tecnico se registra en el log y no
-	 * se expone al cliente.
-	 */
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<Map<String, Object>> inesperado(Exception ex, WebRequest req) {
 		System.err.println("[ms-inventario] Error inesperado: " + ex);
@@ -80,8 +64,6 @@ public class ManejadorErrores {
 		return respuesta(HttpStatus.INTERNAL_SERVER_ERROR, "ERROR_INTERNO",
 				"Ocurrio un error inesperado. Reporta el requestId de esta respuesta.", req);
 	}
-
-	// -----------------------------------------------------------------
 
 	private ResponseEntity<Map<String, Object>> respuesta(HttpStatus estado, String codigo,
 			String mensaje, WebRequest req) {
