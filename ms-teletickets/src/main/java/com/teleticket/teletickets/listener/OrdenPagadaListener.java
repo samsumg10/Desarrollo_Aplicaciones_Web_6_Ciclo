@@ -27,8 +27,9 @@ import com.teleticket.teletickets.service.EmisionService;
  * requeue en RabbitMQ: un requeue devolveria el mensaje al instante, sin espera, y lo martillaria contra
  * un ms-eventos que quizas esta arrancando.
  *
- * Agotados los reintentos el mensaje se descarta con un ERROR en el log. La orden queda PAGADA sin entradas:
- * la fase 11 manda ese mensaje a una cola de mensajes muertos y reembolsa. Es el unico punto que cambia alli.
+ * Agotados los reintentos (o ante un mensaje invalido) el mensaje se rechaza sin volver a la cola: como
+ * tickets.orden-pagada tiene un DLX (fase 11), RabbitMQ lo reenvia a tickets.orden-pagada.dlq, donde lo recoge
+ * EmisionFallidaListener para iniciar el reembolso. Ya no se pierde: es el cierre de RN-08.
  */
 @Component
 public class OrdenPagadaListener {
@@ -56,8 +57,8 @@ public class OrdenPagadaListener {
 			log.info("orden.pagada {} {}", sobre.eventoId(), emitido ? "procesado" : "sin cambios");
 
 		} catch (MensajeInvalidoException e) {
-			// Reintentarlo no lo arregla. Se descarta (requeue=false) para no entrar en un bucle.
-			log.error("Mensaje invalido, se descarta: {}", e.getMessage());
+			// Reintentarlo no lo arregla. Va a la DLQ (requeue=false) para no entrar en un bucle.
+			log.error("Mensaje invalido, va a la cola de mensajes muertos: {}", e.getMessage());
 			canal.basicReject(entrega, false);
 
 		} catch (InterruptedException e) {
@@ -67,8 +68,8 @@ public class OrdenPagadaListener {
 			canal.basicNack(entrega, false, true);
 
 		} catch (Exception e) {
-			// Sin reintentos: queda PAGADA sin entradas. Aqui engancha la fase 11 (cola de mensajes muertos).
-			log.error("EMISION FALLIDA tras {} reintentos, se descarta el mensaje {}: {}", reintentos,
+			// Sin reintentos: reject sin requeue = a la DLQ, y de ahi a emision.fallida (fase 11).
+			log.error("EMISION FALLIDA tras {} reintentos, el mensaje {} va a la cola de mensajes muertos: {}", reintentos,
 					sobre != null ? sobre.eventoId() : null, e.toString());
 			canal.basicReject(entrega, false);
 		}

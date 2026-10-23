@@ -43,4 +43,15 @@ public interface ReservaRepository extends JpaRepository<Reserva, UUID> {
 			+ "WHERE r.id = :id AND r.estado IN (com.teleticket.inventario.entity.EstadoReserva.EN_PAGO, "
 			+ "com.teleticket.inventario.entity.EstadoReserva.ACTIVA)")
 	int confirmar(@Param("id") UUID id);
+
+	/**
+	 * Libera la reserva (queda LIBERADA) si todavia retiene entradas. Devuelve 1 si cambio, 0 si ya estaba LIBERADA.
+	 *
+	 * Es la compuerta de la devolucion de stock (fase 11): el stock solo se repone cuando esto devuelve 1, y como
+	 * es un UPDATE condicional, dos mensajes iguales a la vez no pueden reponerlo dos veces.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("UPDATE Reserva r SET r.estado = com.teleticket.inventario.entity.EstadoReserva.LIBERADA "
+			+ "WHERE r.id = :id AND r.estado <> com.teleticket.inventario.entity.EstadoReserva.LIBERADA")
+	int liberar(@Param("id") UUID id);
 }

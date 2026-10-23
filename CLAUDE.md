@@ -15,8 +15,8 @@ Plataforma de venta de entradas con API Gateway + 8 microservicios. Idioma: espa
 
 ## Estado
 
-Fases 0–10 hechas. **Siguiente: Fase 14** (nominación, descarga y validación en la puerta).
-Orden acordado hasta cumplir el OBJ 2: 14; luego 11, 16, 15. Se descartan 12, 13, 17
+Fases 0–11 hechas. **Siguiente: Fase 14** (nominación, descarga y validación en la puerta).
+Orden acordado hasta cumplir el OBJ 2: 14; luego 16, 15 (la 11 ya está). Se descartan 12, 13, 17
 (ojo: sin la 12 las reservas sin pagar **no vencen** y retienen el stock; ver FASE-06).
 
 ## Datos que no se deducen del código
@@ -40,10 +40,14 @@ Orden acordado hasta cumplir el OBJ 2: 14; luego 11, 16, 15. Se descartan 12, 13
 - `ms-ordenes` también llama a `ms-pagos` (`MS_PAGOS_URL`) y publica `orden.pagada`. `ms-pagos` es idempotente por
   `ordenId`; tarjeta terminada en `0000` rechaza, `9999` tarda 5 s. Una orden con el pago sin confirmar queda en
   `PENDIENTE_PAGO` y se puede volver a pagar (ver FASE-09).
-- `ms-tickets` consume `orden.pagada` (3 reintentos, 1/2/4 s; agotados, **descarta** el mensaje hasta la Fase 11), firma con
+- `ms-tickets` consume `orden.pagada` (3 reintentos, 1/2/4 s; agotados, el mensaje va a la DLQ y arranca la saga), firma con
   HMAC (`teleticket.tickets.clave-firma`, `TICKETS_CLAVE_FIRMA`, mín. 32 caracteres) y publica `tickets.emitidos`; `ms-ordenes`
   lo consume y pasa la orden a `EMITIDA` (ver FASE-10). Cada extremo declara la cola del otro: mismos parámetros en ambos.
   Las estadísticas de la API de RabbitMQ van con retraso: usa `docker exec teleticket-rabbitmq rabbitmqctl list_queues`.
+- Saga de reembolso (Fase 11): `tickets.orden-pagada.dlq` → `emision.fallida` → `reembolso.solicitado` → `pago.reembolsado` →
+  `orden.reembolsada` (devuelve stock y anula entradas). Para la demo: `$env:TICKETS_SIMULAR_FALLO = "true"` en la consola que arranca
+  `ms-tickets` (falla tras guardar las entradas; ~8 s hasta `REEMBOLSADA`). Las colas con argumentos se construyen en
+  `ColasCompartidas`; si una cola cambia de argumentos hay que borrarla (`rabbitmqctl delete_queue`) antes de arrancar.
 - Spring Boot 4.1.1 + Spring Cloud 2025.1.3 + **Jackson 3** (`tools.jackson`): la propiedad
   `spring.jackson.serialization.write-dates-as-timestamps` impide arrancar.
 - `spring.jpa.defer-datasource-initialization` debe ir en `false` (las tablas las crea `schema.sql`).

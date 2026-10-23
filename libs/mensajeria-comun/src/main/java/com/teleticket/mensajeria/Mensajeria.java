@@ -59,6 +59,13 @@ public final class Mensajeria {
 	public static final String INVENTARIO_ORDEN_REEMBOLSADA = "inventario.orden-reembolsada";
 	public static final String TICKETS_ORDEN_PAGADA = "tickets.orden-pagada";
 	public static final String TICKETS_ORDEN_REEMBOLSADA = "tickets.orden-reembolsada";
+
+	/**
+	 * Cola de mensajes muertos de tickets.orden-pagada (fase 11): recibe los orden.pagada que agotaron
+	 * sus reintentos de emision. Tiene dos nombres para lo mismo: este es la cola y la routing key con
+	 * que el DLX la alcanza.
+	 */
+	public static final String TICKETS_ORDEN_PAGADA_DLQ = "tickets.orden-pagada.dlq";
 	public static final String ORDENES_TICKETS_EMITIDOS = "ordenes.tickets-emitidos";
 	public static final String ORDENES_EMISION_FALLIDA = "ordenes.emision-fallida";
 	public static final String ORDENES_PAGO_REEMBOLSADO = "ordenes.pago-reembolsado";

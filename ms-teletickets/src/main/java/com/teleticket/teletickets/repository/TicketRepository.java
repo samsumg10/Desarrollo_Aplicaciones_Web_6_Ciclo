@@ -36,4 +36,15 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 	int emitir(@Param("id") UUID id, @Param("ordenId") UUID ordenId, @Param("numero") int numero,
 			@Param("usuarioId") UUID usuarioId, @Param("eventoId") UUID eventoId, @Param("zonaId") UUID zonaId,
 			@Param("codigo") UUID codigo, @Param("firma") String firma, @Param("condiciones") String condiciones);
+
+	/**
+	 * Anula las entradas de la orden que siguen EMITIDO (fase 11, la orden se reembolso). Devuelve cuantas.
+	 *
+	 * Solo toca las EMITIDO: una USADO ya se uso en la puerta y una ANULADO ya esta anulada, asi que repetir
+	 * el mensaje no cambia nada. Hay que llamarlo dentro de una transaccion.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query(value = "UPDATE ticket SET estado = 'ANULADO' WHERE orden_id = :ordenId AND estado = 'EMITIDO'",
+			nativeQuery = true)
+	int anularDeOrden(@Param("ordenId") UUID ordenId);
 }

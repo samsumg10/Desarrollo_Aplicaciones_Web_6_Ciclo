@@ -14,7 +14,7 @@ import com.teleticket.pagos.entity.Pago;
 /**
  * Acceso a la tabla pago.
  *
- * Las tres consultas que escriben comparten la idea que protege el stock y las
+ * Las consultas que escriben comparten la idea que protege el stock y las
  * reservas: la comprobacion y el cambio van en UN SOLO paso de la base de datos,
  * asi que no hay hueco entre "mirar" y "cambiar" por el que se cuele otra peticion.
  * Todas devuelven cuantas filas cambiaron: 1 = lo logre yo, 0 = otra peticion se adelanto.
@@ -66,4 +66,26 @@ public interface PagoRepository extends JpaRepository<Pago, UUID> {
 			""", nativeQuery = true)
 	int resolver(@Param("id") UUID id, @Param("estado") String estado,
 			@Param("referencia") String referencia, @Param("motivo") String motivo);
+
+	/**
+	 * Registra la devolucion del pago (fase 11). Devuelve 1 la primera vez y 0 si ya estaba devuelto:
+	 * UNIQUE(pago_id) deja pasar a una sola peticion, igual que idempotency_key en el cobro.
+	 * Hay que llamarlo dentro de una transaccion, junto con {@link #marcarReembolsado}.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query(value = """
+			INSERT INTO reembolso (id, pago_id, monto, motivo, creado_en)
+			VALUES (:id, :pagoId, :monto, :motivo, now())
+			ON CONFLICT (pago_id) DO NOTHING
+			""", nativeQuery = true)
+	int registrarReembolso(@Param("id") UUID id, @Param("pagoId") UUID pagoId, @Param("monto") BigDecimal monto,
+			@Param("motivo") String motivo);
+
+	/** APROBADO -> REEMBOLSADO. Solo si sigue APROBADO: un pago ya reembolsado (o nunca cobrado) no cambia. */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query(value = """
+			UPDATE pago SET estado = 'REEMBOLSADO', actualizado_en = now()
+			 WHERE id = :id AND estado = 'APROBADO'
+			""", nativeQuery = true)
+	int marcarReembolsado(@Param("id") UUID id);
 }

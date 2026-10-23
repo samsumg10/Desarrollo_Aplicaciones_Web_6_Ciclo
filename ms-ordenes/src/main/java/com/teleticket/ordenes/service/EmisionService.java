@@ -54,6 +54,17 @@ public class EmisionService {
 						"tickets.emitidos apunta a la orden %s, que no existe".formatted(ordenId)))
 				.getEstado();
 
+		// Fase 11: una orden REEMBOLSADA (o EXPIRADA) es final. Un tickets.emitidos tardio no la resucita.
+		if (!estado.puedePasarA(EstadoOrden.EMITIDA)) {
+			if (estado == EstadoOrden.EMITIDA) {
+				log.info("La orden {} ya estaba EMITIDA: sin cambios", ordenId);
+			} else {
+				log.warn("tickets.emitidos de la orden {}, pero esta {} y no puede pasar a EMITIDA: no se cambia",
+						ordenId, estado);
+			}
+			return false;
+		}
+
 		if (ordenRepo.cambiarEstado(ordenId, EstadoOrden.PAGADA, EstadoOrden.EMITIDA) == 1) {
 			int cantidad = emitidos.ticketIds() != null ? emitidos.ticketIds().size() : 0;
 			historialRepo.save(OrdenHistorial.registrar(ordenId, EstadoOrden.PAGADA, EstadoOrden.EMITIDA,

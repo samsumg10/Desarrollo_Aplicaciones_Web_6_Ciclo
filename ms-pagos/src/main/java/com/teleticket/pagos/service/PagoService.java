@@ -37,7 +37,7 @@ import com.teleticket.pagos.repository.PagoRepository;
  * cobro cuando dos peticiones coinciden: con "buscar primero", las dos no encuentran nada y las dos cobran.
  *
  * Limitacion conocida: si el servicio se cae entre 1 y 3, el pago queda PENDIENTE y los reintentos reciben
- * PAGO_EN_CURSO. Resolver esos pagos huerfanos queda para la fase 11.
+ * PAGO_EN_CURSO. Resolver esos pagos huerfanos sigue pendiente: la fase 11 solo reembolsa pagos APROBADOS.
  */
 @Service
 public class PagoService {

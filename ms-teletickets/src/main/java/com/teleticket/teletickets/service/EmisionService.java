@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -49,15 +50,18 @@ public class EmisionService {
 	private final FirmaService firma;
 	private final PublicadorEventos publicador;
 	private final TransactionTemplate tx;
+	private final boolean simularFallo;
 
 	public EmisionService(TicketRepository ticketRepo, MensajeProcesadoRepository procesadosRepo,
-			EventoClient eventos, FirmaService firma, PublicadorEventos publicador, TransactionTemplate tx) {
+			EventoClient eventos, FirmaService firma, PublicadorEventos publicador, TransactionTemplate tx,
+			@Value("${teleticket.tickets.simular-fallo-emision:false}") boolean simularFallo) {
 		this.ticketRepo = ticketRepo;
 		this.procesadosRepo = procesadosRepo;
 		this.eventos = eventos;
 		this.firma = firma;
 		this.publicador = publicador;
 		this.tx = tx;
+		this.simularFallo = simularFallo;
 	}
 
 	/**
@@ -86,6 +90,12 @@ public class EmisionService {
 
 		// 2. Las entradas.
 		List<UUID> ticketIds = tx.execute(s -> crearEntradas(orden, condiciones.condicionesIngreso()));
+
+		// Interruptor de la demo (fase 11): una caida entre guardar las entradas y anunciarlas. Las entradas ya
+		// estan guardadas, asi que ademas se ve como la saga las anula al reembolsar.
+		if (simularFallo) {
+			throw new IllegalStateException("Fallo simulado (teleticket.tickets.simular-fallo-emision=true)");
+		}
 
 		// 3. Avisar. Si el broker no confirma lanza PublicacionFallidaException y el listener reintenta.
 		publicador.publicar(Mensajeria.TICKETS_EMITIDOS, SobreMensaje.de(Mensajeria.TICKETS_EMITIDOS,

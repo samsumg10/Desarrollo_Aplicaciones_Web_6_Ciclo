@@ -61,4 +61,19 @@ public interface StockZonaRepository extends JpaRepository<StockZona, UUID> {
 	int crearSiNoExiste(@Param("zonaId") UUID zonaId,
 			@Param("eventoId") UUID eventoId,
 			@Param("aforo") int aforo);
+
+	/**
+	 * Devuelve entradas al stock (fase 11): el inverso de {@link #descontar}. Devuelve 1 si la zona existe.
+	 *
+	 * Solo se llama cuando una reserva acaba de pasar a LIBERADA, en la misma transaccion. Si por un error se
+	 * repusiera de mas, CHECK (disponible <= total) rechaza el UPDATE: nunca habra mas entradas que el aforo.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query(value = """
+			UPDATE stock_zona
+			   SET disponible = disponible + :cantidad,
+			       version    = version + 1
+			 WHERE zona_id = :zonaId
+			""", nativeQuery = true)
+	int reponer(@Param("zonaId") UUID zonaId, @Param("cantidad") int cantidad);
 }

@@ -78,7 +78,7 @@ final de este documento (sección «Plantilla del documento de fase»).
 | **8** ✅ | `ms-ordenes`: crear orden con Feign | CU-05 (completo) | **hecha** |
 | **9** ✅ | `ms-pagos` + pagar la orden | CU-06 | **hecha** |
 | **10** ✅ | `ms-tickets`: emisión asíncrona firmada | CU-07 | **hecha** |
-| **11** | Saga: reembolso automático | RN-08 | 2–3 |
+| **11** ✅ | Saga: reembolso automático | RN-08 | **hecha** |
 | **12** | Vencimiento de reservas (TTL + DLX) | RN-06 | 2 |
 | **13** | `ms-notificaciones`: correos | CU-10 | 2 |
 | **14** | Nominación, descarga y validación | CU-08, CU-09, CU-11 | 2–3 |
