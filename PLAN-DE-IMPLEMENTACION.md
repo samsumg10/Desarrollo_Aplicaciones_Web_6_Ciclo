@@ -77,7 +77,7 @@ final de este documento (sección «Plantilla del documento de fase»).
 | **7** ✅ | `ms-cola`: sala de espera, sorteo y pases | CU-03, CU-04 | **hecha** |
 | **8** ✅ | `ms-ordenes`: crear orden con Feign | CU-05 (completo) | **hecha** |
 | **9** ✅ | `ms-pagos` + pagar la orden | CU-06 | **hecha** |
-| **10** | `ms-tickets`: emisión asíncrona firmada | CU-07 | 3 |
+| **10** ✅ | `ms-tickets`: emisión asíncrona firmada | CU-07 | **hecha** |
 | **11** | Saga: reembolso automático | RN-08 | 2–3 |
 | **12** | Vencimiento de reservas (TTL + DLX) | RN-06 | 2 |
 | **13** | `ms-notificaciones`: correos | CU-10 | 2 |

@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import com.teleticket.mensajeria.Mensajeria;
 
 /**
- * Las colas de orden.pagada que declara ms-ordenes, el productor.
+ * Las colas que declara ms-ordenes: las de orden.pagada (es el productor) y la de tickets.emitidos (el consumidor).
  *
  * Por que las declara el productor y no solo el consumidor: con template.mandatory=true, un mensaje
  * que no llega a ninguna cola se devuelve y la publicacion falla. Si ms-inventario no hubiera
@@ -24,7 +24,9 @@ import com.teleticket.mensajeria.Mensajeria;
  * (un DLX, por ejemplo), hay que cambiarlo en los dos sitios a la vez: RabbitMQ rechaza redeclarar
  * una cola con parametros distintos (PRECONDITION_FAILED).
  *
- * La cola de ms-tickets (tickets.orden-pagada) la declarara la fase 10.
+ * Fase 10: tambien declara tickets.orden-pagada (la cola de ms-tickets, con el mismo criterio: si ms-tickets
+ * esta apagado, orden.pagada espera en su cola y se emite al volver) y ordenes.tickets-emitidos, la suya,
+ * de donde consume tickets.emitidos. ms-tickets declara las dos con los mismos parametros.
  */
 @Configuration
 public class RabbitConfig {
@@ -38,5 +40,29 @@ public class RabbitConfig {
 	Binding bindingInventarioOrdenPagada(@Qualifier("colaInventarioOrdenPagada") Queue cola,
 			@Qualifier("exchangePrincipal") TopicExchange exchange) {
 		return BindingBuilder.bind(cola).to(exchange).with(Mensajeria.ORDEN_PAGADA);
+	}
+
+	/** Fase 10: orden.pagada tambien lo consume ms-tickets. */
+	@Bean
+	Queue colaTicketsOrdenPagada() {
+		return QueueBuilder.durable(Mensajeria.TICKETS_ORDEN_PAGADA).build();
+	}
+
+	@Bean
+	Binding bindingTicketsOrdenPagada(@Qualifier("colaTicketsOrdenPagada") Queue cola,
+			@Qualifier("exchangePrincipal") TopicExchange exchange) {
+		return BindingBuilder.bind(cola).to(exchange).with(Mensajeria.ORDEN_PAGADA);
+	}
+
+	/** Fase 10: tickets.emitidos, que publica ms-tickets y consume ms-ordenes. */
+	@Bean
+	Queue colaOrdenesTicketsEmitidos() {
+		return QueueBuilder.durable(Mensajeria.ORDENES_TICKETS_EMITIDOS).build();
+	}
+
+	@Bean
+	Binding bindingOrdenesTicketsEmitidos(@Qualifier("colaOrdenesTicketsEmitidos") Queue cola,
+			@Qualifier("exchangePrincipal") TopicExchange exchange) {
+		return BindingBuilder.bind(cola).to(exchange).with(Mensajeria.TICKETS_EMITIDOS);
 	}
 }
