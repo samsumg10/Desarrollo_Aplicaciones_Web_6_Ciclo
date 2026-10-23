@@ -13,12 +13,11 @@ Maven no hace falta: cada proyecto trae `mvnw`. La primera vez necesita internet
 
 ## Instalación y arranque manual
 
-### 1. Clonar el repositorio
+### 1. Obtener el proyecto
 
-```powershell
-git clone <url-del-repositorio>
-cd <carpeta-del-repositorio>
-```
+Descomprime el archivo recibido (o clona el repositorio con `git clone <url>`) y abre una
+terminal PowerShell dentro de la carpeta raíz del proyecto, la que contiene `infra`, `libs` y
+los `ms-*`.
 
 ### 2. Levantar la infraestructura (PostgreSQL, RabbitMQ, MailHog)
 
@@ -64,25 +63,25 @@ cd ms-usuarios
 
 ### 5. Comprobar que todo está vivo
 
-Cada servicio responde en `http://localhost:<puerto>/actuator/health` con `"status":"UP"`.
-En Windows puedes verlos todos de una vez:
+Cada servicio responde en `http://localhost:<puerto>/actuator/health` con `"status":"UP"`:
 
 ```powershell
-.\verificar-servicios.ps1
+curl.exe http://localhost:8081/actuator/health
 ```
 
 La puerta de entrada para las pruebas es el gateway: `http://localhost:8090`.
 
-## Atajos (opcionales)
+## Detener todo
 
-- `.\arrancar-todo.ps1` abre una ventana por servicio, en lugar del paso 4.
-- `.\detener-todo.ps1` los detiene. Para la infraestructura: `cd infra ; docker compose down`.
+Cierra cada terminal de servicio con `Ctrl+C`. Para la infraestructura:
+`cd infra ; docker compose down`.
 
 ## Si algo falla
 
-- **Puerto ocupado:** cambia el puerto con una variable de entorno. Las variables disponibles
-  (puertos, base de datos, RabbitMQ) están en [.env.example](.env.example); cópialo a `.env` para
-  que los scripts `.ps1` y `docker compose --env-file ../.env up -d` lo usen.
+- **Puerto ocupado:** cambia el puerto con una variable de entorno en la terminal del servicio,
+  antes de arrancarlo; por ejemplo `$env:MS_COLA_PORT = "9083"` o `$env:GATEWAY_PORT = "8095"`.
+  Las variables disponibles (puertos, base de datos, RabbitMQ) están en [.env.example](.env.example).
+  Para la infraestructura, copia ese archivo a `.env` y usa `docker compose --env-file ../.env up -d`.
 - **Un servicio no compila por `mensajeria-comun`:** repite el paso 3.
 - **Docker no responde:** abre Docker Desktop y espera a que termine de arrancar.
 
