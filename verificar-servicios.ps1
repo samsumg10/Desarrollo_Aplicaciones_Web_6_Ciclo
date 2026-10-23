@@ -9,21 +9,18 @@
 #  USO:  .\verificar-servicios.ps1
 # =====================================================================
 
+# Puertos y nombres salen de entorno.ps1 (variables del .env).
+. "$PSScriptRoot\entorno.ps1"
+
 # Ojo: las claves van entre comillas a proposito. Si fueran numeros,
-# PowerShell interpretaria $SERVICIOS[8090] como la POSICION 8090 del
+# PowerShell interpretaria $ESPERADOS[8090] como la POSICION 8090 del
 # diccionario en vez de la clave, y devolveria $null.
-$SERVICIOS = [ordered]@{
-    # El gateway usa 8090 y no 8080: ver la desviacion documentada en
-    # docs\fases\FASE-01-infraestructura.md
-    "8090" = "api-gateway"
-    "8081" = "ms-usuarios"
-    "8082" = "ms-eventos"
-    "8083" = "ms-cola"
-    "8084" = "ms-inventario"
-    "8085" = "ms-ordenes"
-    "8086" = "ms-pagos"
-    "8087" = "ms-tickets"
-    "8088" = "ms-notificaciones"
+# El gateway va primero porque es la puerta de entrada.
+$ESPERADOS = [ordered]@{}
+$gateway = $CATALOGO | Where-Object { $_.Carpeta -eq "ms-api-gateway" }
+$ESPERADOS["$($gateway.Puerto)"] = $gateway.Nombre
+foreach ($s in ($CATALOGO | Where-Object { $_.Carpeta -ne "ms-api-gateway" })) {
+    $ESPERADOS["$($s.Puerto)"] = $s.Nombre
 }
 
 Write-Host ""
@@ -32,8 +29,8 @@ Write-Host "  ---------------------------------------------------------------" -
 Write-Host ("  {0,-7} {1,-20} {2,-10} {3}" -f "PUERTO", "ESPERADO", "/health", "/ping") -ForegroundColor Gray
 
 $vivos = 0
-foreach ($puerto in $SERVICIOS.Keys) {
-    $esperado = $SERVICIOS[$puerto]
+foreach ($puerto in $ESPERADOS.Keys) {
+    $esperado = $ESPERADOS[$puerto]
 
     # -UseBasicParsing y un timeout corto para que no se quede colgado
     # si un servicio esta a medio arrancar.
@@ -67,10 +64,10 @@ foreach ($puerto in $SERVICIOS.Keys) {
 }
 
 Write-Host "  ---------------------------------------------------------------" -ForegroundColor Cyan
-if ($vivos -eq $SERVICIOS.Count) {
-    Write-Host "  $vivos/$($SERVICIOS.Count) servicios vivos. Fase 0 verificada." -ForegroundColor Green
+if ($vivos -eq $ESPERADOS.Count) {
+    Write-Host "  $vivos/$($ESPERADOS.Count) servicios vivos. Fase 0 verificada." -ForegroundColor Green
 } else {
-    Write-Host "  $vivos/$($SERVICIOS.Count) servicios vivos." -ForegroundColor Yellow
+    Write-Host "  $vivos/$($ESPERADOS.Count) servicios vivos." -ForegroundColor Yellow
     Write-Host "  Si alguno acaba de arrancar, espera unos segundos y repite." -ForegroundColor Gray
 }
 Write-Host ""

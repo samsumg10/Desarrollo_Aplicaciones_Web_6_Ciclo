@@ -19,31 +19,31 @@
 -- =====================================================================
 
 -- Fase 4 - registro de compradores y personal con su rol
-CREATE DATABASE db_usuarios       OWNER teleticket;
+CREATE DATABASE db_usuarios;
 
 -- Fase 3 - eventos, zonas, precios, preventas, hora y reglas de venta
-CREATE DATABASE db_eventos        OWNER teleticket;
+CREATE DATABASE db_eventos;
 
 -- Fase 7 - sala de espera, sorteo de turnos y pases de compra
-CREATE DATABASE db_cola           OWNER teleticket;
+CREATE DATABASE db_cola;
 
 -- Fase 6 - stock por zona y reservas temporales
-CREATE DATABASE db_inventario     OWNER teleticket;
+CREATE DATABASE db_inventario;
 
 -- Fase 8 - ordenes de compra y coordinacion de la saga
-CREATE DATABASE db_ordenes        OWNER teleticket;
+CREATE DATABASE db_ordenes;
 
 -- Fase 9 - cobros y reembolsos (pasarela simulada)
-CREATE DATABASE db_pagos          OWNER teleticket;
+CREATE DATABASE db_pagos;
 
 -- Fase 10 - emision, nominacion y validacion de e-tickets
-CREATE DATABASE db_tickets        OWNER teleticket;
+CREATE DATABASE db_tickets;
 
 -- Fase 13 - correos enviados al comprador
-CREATE DATABASE db_notificaciones OWNER teleticket;
+CREATE DATABASE db_notificaciones;
 
 -- Fase 17 (opcional) - libro de reclamaciones y control de plazos
-CREATE DATABASE db_reclamos       OWNER teleticket;
+CREATE DATABASE db_reclamos;
 
 
 -- ---------------------------------------------------------------------

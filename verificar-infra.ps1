@@ -12,6 +12,13 @@
 $ErrorActionPreference = "Continue"
 $fallos = 0
 
+# Usuario, puertos y credenciales salen del .env (o sus valores por defecto).
+. "$PSScriptRoot\entorno.ps1"
+$DB_USER        = Get-Config "DB_USER" "teleticket"
+$DB_PORT        = Get-Config "DB_PORT" "5433"
+$RABBIT_CONSOLA = Get-Config "RABBIT_CONSOLA_PORT" "15672"
+$MAILHOG_WEB    = Get-Config "MAILHOG_WEB_PORT" "8025"
+
 Write-Host ""
 Write-Host "  Teleticket - infraestructura local" -ForegroundColor Cyan
 Write-Host "  ===============================================================" -ForegroundColor Cyan
@@ -25,7 +32,7 @@ Write-Host "  [1] Docker" -ForegroundColor White
 $version = docker info --format "{{.ServerVersion}}" 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $version) {
     Write-Host "      X  El daemon no responde." -ForegroundColor Red
-    Write-Host "         Abri Docker Desktop y espera a que el icono de la" -ForegroundColor Gray
+    Write-Host "         Abre Docker Desktop y espera a que el icono de la" -ForegroundColor Gray
     Write-Host "         ballena deje de animarse (~1 minuto)." -ForegroundColor Gray
     Write-Host ""
     exit 1
@@ -70,13 +77,13 @@ foreach ($nombre in $ESPERADOS) {
 # 3. Las 9 bases de datos
 # ---------------------------------------------------------------------
 Write-Host ""
-Write-Host "  [3] Bases de datos en PostgreSQL (puerto 5433)" -ForegroundColor White
+Write-Host "  [3] Bases de datos en PostgreSQL (puerto $DB_PORT)" -ForegroundColor White
 
 $BASES = @("db_usuarios", "db_eventos", "db_cola", "db_inventario", "db_ordenes",
            "db_pagos", "db_tickets", "db_notificaciones", "db_reclamos")
 
 # -t = sin cabeceras, -A = sin alineacion: salida limpia para comparar.
-$listado = docker exec teleticket-postgres psql -U teleticket -d postgres -tA -c "SELECT datname FROM pg_database;" 2>$null
+$listado = docker exec teleticket-postgres psql -U $DB_USER -d postgres -tA -c "SELECT datname FROM pg_database;" 2>$null
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "      X  No se pudo consultar PostgreSQL" -ForegroundColor Red
@@ -106,8 +113,8 @@ Write-Host ""
 Write-Host "  [4] Consolas web" -ForegroundColor White
 
 $WEBS = @(
-    @{ Nombre = "RabbitMQ"; Url = "http://localhost:15672" },
-    @{ Nombre = "MailHog";  Url = "http://localhost:8025" }
+    @{ Nombre = "RabbitMQ"; Url = "http://localhost:$RABBIT_CONSOLA" },
+    @{ Nombre = "MailHog";  Url = "http://localhost:$MAILHOG_WEB" }
 )
 
 foreach ($web in $WEBS) {
@@ -133,9 +140,9 @@ Write-Host "  ===============================================================" -
 if ($fallos -eq 0) {
     Write-Host "  Todo correcto. Fase 1 verificada." -ForegroundColor Green
     Write-Host ""
-    Write-Host "  Abri en el navegador:" -ForegroundColor Gray
-    Write-Host "      http://localhost:15672   RabbitMQ  (guest / guest)" -ForegroundColor White
-    Write-Host "      http://localhost:8025    MailHog" -ForegroundColor White
+    Write-Host "  Abre en el navegador:" -ForegroundColor Gray
+    Write-Host "      http://localhost:$RABBIT_CONSOLA   RabbitMQ  ($(Get-Config 'RABBIT_USER' 'guest') / $(Get-Config 'RABBIT_PASSWORD' 'guest'))" -ForegroundColor White
+    Write-Host "      http://localhost:$MAILHOG_WEB    MailHog" -ForegroundColor White
 } else {
     Write-Host "  $fallos comprobacion(es) fallaron." -ForegroundColor Yellow
     Write-Host "  Revisa infra\README.md, seccion 'Si algo sale mal'." -ForegroundColor Gray

@@ -27,7 +27,14 @@ Orden acordado hasta cumplir el OBJ 2: 14; luego 16, 15 (la 11 ya está). Se des
   tickets 8087 (carpeta `ms-teletickets`, nombre `ms-tickets`), notificaciones 8088.
 - Usuarios de prueba: ids `00000000-0000-0000-0000-00000000000N` (1–3 compradores, 4 operador,
   5 controlador, 6 atención), contraseña `Teleticket123`.
-- Infra: `cd infra ; docker compose up -d`. Docker Desktop tarda ~2 min en arrancar.
+- **Configuración por variables de entorno**: puertos (`GATEWAY_PORT`, `MS_<SERVICIO>_PORT`), BD, RabbitMQ,
+  URLs entre servicios y clave de firma se definen en `.env` (copia de `.env.example`, ignorado por Git).
+  Sin `.env` rigen los valores por defecto de cada `application.properties`. Los `.ps1` lo cargan vía
+  `entorno.ps1` (única tabla de puertos); una variable ya definida en la consola **gana** sobre el `.env`,
+  así que tras probar otros puertos limpia las `$env:` o abre una consola nueva.
+  Si añades una variable o un puerto, actualiza `.env.example` y `entorno.ps1`.
+- Infra: `cd infra ; docker compose --env-file ../.env up -d` (sin `.env`: `docker compose up -d`).
+  Docker Desktop tarda ~2 min en arrancar.
 - RabbitMQ: `localhost:5672`, consola `15672` (guest/guest). Conexión por `RABBIT_HOST/PORT/USER/PASSWORD`.
   Todo nombre de exchange, routing key o cola va en `libs/mensajeria-comun` (`Mensajeria.java`);
   los servicios publican solo por `PublicadorEventos`, nunca con `RabbitTemplate`.

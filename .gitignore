@@ -26,3 +26,6 @@ target/
 
 # Logs locales
 *.log
+
+# Configuracion local de cada maquina (copia de .env.example). Puede llevar claves.
+.env

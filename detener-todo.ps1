@@ -4,7 +4,7 @@
 # =====================================================================
 #
 #  Busca que proceso esta escuchando en cada puerto del proyecto
-#  (8081-8088 y 8090) y lo termina. Es mas fiable que cerrar las
+#  (los de entorno.ps1: 8081-8088 y 8090 por defecto) y lo termina. Es mas fiable que cerrar las
 #  ventanas a mano, porque Maven deja un proceso Java hijo que a veces
 #  sobrevive y luego provoca el error "Port already in use".
 #
@@ -16,10 +16,10 @@
 #  USO:  .\detener-todo.ps1
 # =====================================================================
 
-# Ojo: el 8080 NO esta en la lista. En esta maquina lo ocupa el
-# contenedor de otro proyecto y el gateway se movio al 8090.
-# Ver docs\fases\FASE-01-infraestructura.md
-$PUERTOS = @(8081..8088) + @(8090)
+# Los puertos salen de entorno.ps1 (variables del .env). El 8080 no esta en la
+# lista por defecto: el gateway usa el 8090. Ver docs\fases\FASE-01-infraestructura.md
+. "$PSScriptRoot\entorno.ps1"
+$PUERTOS = $CATALOGO | ForEach-Object { $_.Puerto }
 
 # Unicos procesos que este script tiene permitido detener.
 $PERMITIDOS = @("java", "javaw")

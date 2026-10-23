@@ -20,23 +20,14 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$raiz = $PSScriptRoot
 
-# Orden de arranque: primero los de negocio, el gateway al final, para que
-# cuando el gateway empiece a enrutar (fase 2) sus destinos ya esten vivos.
-$TODOS = [ordered]@{
-    "ms-usuarios"       = 8081
-    "ms-eventos"        = 8082
-    "ms-cola"           = 8083
-    "ms-inventario"     = 8084
-    "ms-ordenes"        = 8085
-    "ms-pagos"          = 8086
-    "ms-teletickets"    = 8087
-    "ms-notificaciones" = 8088
-    # El gateway usa 8090 y no 8080: ver la desviacion documentada en
-    # docs\fases\FASE-01-infraestructura.md
-    "ms-api-gateway"    = 8090
-}
+# Carga el .env de la raiz y la tabla de servicios con sus puertos.
+. "$PSScriptRoot\entorno.ps1"
+$raiz = $RAIZ
+
+# Orden de arranque y puertos: ver entorno.ps1 (los puertos salen del .env).
+$TODOS = [ordered]@{}
+foreach ($s in $CATALOGO) { $TODOS[$s.Carpeta] = $s.Puerto }
 
 if ($Servicios) {
     $aLevantar = [ordered]@{}
@@ -50,6 +41,24 @@ if ($Servicios) {
     }
 } else {
     $aLevantar = $TODOS
+}
+
+# La libreria de mensajeria se lee de ~/.m2: en un clon nuevo no esta y los
+# servicios que la usan no compilan. Si falta, se instala aqui (necesita red).
+$libInstalada = Join-Path $HOME ".m2\repository\com\teleticket\mensajeria-comun"
+if (-not (Test-Path $libInstalada)) {
+    Write-Host ""
+    Write-Host "  [i] libs\mensajeria-comun no esta instalada en ~/.m2. Instalandola..." -ForegroundColor Yellow
+    Push-Location (Join-Path $raiz "libs\mensajeria-comun")
+    try {
+        & .\mvnw.cmd -q clean install -DskipTests
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  [X] No se pudo instalar libs\mensajeria-comun. Revisa el error de arriba." -ForegroundColor Red
+            exit 1
+        }
+    } finally {
+        Pop-Location
+    }
 }
 
 Write-Host ""

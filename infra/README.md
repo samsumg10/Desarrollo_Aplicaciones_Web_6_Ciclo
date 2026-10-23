@@ -56,9 +56,12 @@ Todos se ejecutan **desde esta carpeta `infra/`**.
 | RabbitMQ (consola web) | `guest`      | `guest`      |
 | MailHog                | *(no pide)*  | —             |
 
-> Son credenciales de desarrollo local, a propósito simples y escritas en el
-> `docker-compose.yml`. En un sistema real irían en variables de entorno o en un gestor de
-> secretos, nunca en el repositorio.
+> Son los valores **por defecto** de desarrollo local, a propósito simples. Se cambian con las
+> variables `DB_USER`, `DB_PASSWORD`, `RABBIT_USER` y `RABBIT_PASSWORD` del `.env` de la raíz
+> (copia de `.env.example`), y los puertos con `DB_PORT`, `RABBIT_PORT`, `RABBIT_CONSOLA_PORT`,
+> `MAILHOG_SMTP_PORT` y `MAILHOG_WEB_PORT`. Para que el compose lea ese archivo:
+> `docker compose --env-file ../.env up -d`. En un sistema real irían en un gestor de secretos,
+> nunca en el repositorio.
 
 ---
 
@@ -107,10 +110,10 @@ Así, lo único que cambia entre escenarios es `DB_HOST` y `DB_PORT`:
 | Un contenedor por servicio *(futuro)* | `postgres-eventos`, … | `5432`          | solo el compose    |
 | Kubernetes *(futuro)*                 | el nombre del Service    | `5432`          | solo el manifiesto |
 
-Las credenciales del propio contenedor de PostgreSQL también admiten override
-(`POSTGRES_USER`, `POSTGRES_PASSWORD`), pero **no conviene cambiarlas**: el volumen ya se
-inicializó con `teleticket`, así que cambiarlas dejaría la base inaccesible y habría que borrar el
-volumen con `docker compose down -v`.
+El contenedor de PostgreSQL usa las **mismas** `DB_USER` y `DB_PASSWORD` (el compose las pasa como
+`POSTGRES_USER` y `POSTGRES_PASSWORD`). Solo se aplican al **crear** el volumen: si las cambias con
+el volumen ya creado, la base queda inaccesible y hay que borrarlo con `docker compose down -v`.
+Las 9 bases quedan a nombre de ese usuario (el script de `init-db/` ya no lo fija a `teleticket`).
 
 El razonamiento completo de por qué hay una sola instancia y no nueve está en
 [DEC-01](../docs/decisiones/DEC-01-bases-de-datos.md).

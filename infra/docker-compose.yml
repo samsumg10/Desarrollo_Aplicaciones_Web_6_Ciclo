@@ -10,7 +10,14 @@
 #    mailhog   -> captura los correos sin enviarlos de verdad
 #
 #  USO (desde esta carpeta infra/):
-#     docker compose up -d        levantar
+#     docker compose --env-file ../.env up -d   levantar con tu .env
+#     docker compose up -d        levantar con los valores por defecto
+#
+#  Puertos, usuario y contrasena salen del archivo .env de la raiz del
+#  repositorio (copia .env.example a .env). Sin .env se usan los valores
+#  por defecto escritos aqui despues de ':-'.
+#
+#  Otros comandos:
 #     docker compose ps           ver estado
 #     docker compose logs -f      ver logs
 #     docker compose down         apagar (los datos se conservan)
@@ -30,9 +37,9 @@ services:
   # las tablas de otro. En desarrollo se usa una sola instancia por
   # comodidad; en Kubernetes cada base podria tener su contenedor.
   #
-  # OJO con el puerto: se expone en 5433, no en 5432, porque esta
-  # maquina ya tiene un PostgreSQL instalado ocupando el 5432.
-  # Dentro de la red de Docker se sigue usando el 5432.
+  # OJO con el puerto: por defecto se expone en 5433, no en 5432, porque
+  # la maquina original ya tenia un PostgreSQL instalado en el 5432.
+  # Se cambia con DB_PORT. Dentro de la red de Docker siempre es el 5432.
   # -------------------------------------------------------------------
   postgres:
     image: postgres:16-alpine
@@ -40,15 +47,15 @@ services:
     # Se levanta solo, salvo que tú lo hayas detenido -> docs/definiciones/definiciones-de-codigo.md
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-teleticket}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teleticket}
+      POSTGRES_USER: ${DB_USER:-teleticket}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-teleticket}
       # Base de administracion. Las 9 del proyecto las crea el script
       # de init-db/, que Postgres ejecuta solo la primera vez.
       POSTGRES_DB: postgres
       # Evita problemas de orden alfabetico con acentos en los nombres.
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
-      - "5433:5432"
+      - "${DB_PORT:-5433}:5432"
     volumes:
       # Los datos sobreviven a 'docker compose down'.
       - postgres-datos:/var/lib/postgresql/data
@@ -58,7 +65,7 @@ services:
     healthcheck:
       # 'pg_isready' responde solo cuando Postgres acepta conexiones.
       # En la fase 15 los microservicios esperaran este healthcheck.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-teleticket} -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-teleticket} -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -71,9 +78,9 @@ services:
   # herramienta mas util del proyecto: permite VER los mensajes
   # pasando por las colas.
   #
-  #   AMQP (lo usan los servicios) : 5672
-  #   Consola web (la usas tu)     : http://localhost:15672
-  #   Usuario / contrasena         : guest / guest
+  #   AMQP (lo usan los servicios) : 5672   (RABBIT_PORT)
+  #   Consola web (la usas tu)     : http://localhost:15672   (RABBIT_CONSOLA_PORT)
+  #   Usuario / contrasena         : guest / guest por defecto (RABBIT_USER / RABBIT_PASSWORD)
   #
   # El exchange 'teleticket.exchange' y las colas NO se crean aqui:
   # los declara el codigo Java en la fase 5.
@@ -84,11 +91,11 @@ services:
     # Se levanta solo, salvo que tú lo hayas detenido -> docs/definiciones/definiciones-de-codigo.md
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:-guest}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBIT_PORT:-5672}:5672"
+      - "${RABBIT_CONSOLA_PORT:-15672}:15672"
     volumes:
       - rabbitmq-datos:/var/lib/rabbitmq
     # Pregunta cada cierto tiempo si ya esta listo -> docs/definiciones/definiciones-de-codigo.md
@@ -120,8 +127,8 @@ services:
     # Se levanta solo, salvo que tú lo hayas detenido -> docs/definiciones/definiciones-de-codigo.md
     restart: unless-stopped
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_WEB_PORT:-8025}:8025"
     # MailHog guarda los correos en memoria: al reiniciarlo se vacia
     # la bandeja. Es lo que queremos para las pruebas.
     environment:
