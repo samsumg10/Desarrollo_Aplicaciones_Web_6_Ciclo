@@ -69,11 +69,11 @@ final de este documento (sección «Plantilla del documento de fase»).
 |---|---|---|---|
 | **0** ✅ | Cimientos: los 9 servicios arrancan y responden | Ver los 9 vivos | **hecha** |
 | **1** ✅ | Infraestructura local con Docker | PostgreSQL + RabbitMQ + MailHog | **hecha** |
-| **2** | API Gateway con enrutamiento real | Un solo puerto de entrada | 1 |
-| **3** | `ms-eventos`: catálogo de eventos y zonas | CU-02, CU-14 | 2–3 |
-| **4** | `ms-usuarios`: registro y roles | CU-01 | 1–2 |
-| **5** | Librería común + primer mensaje RabbitMQ | CU-15 | 2 |
-| **6** | `ms-inventario`: stock y reservas | CU-05 (parte) | 2 |
+| **2** ✅ | API Gateway con enrutamiento real | Un solo puerto de entrada | **hecha** |
+| **3** ✅ | `ms-eventos`: catálogo de eventos y zonas | CU-02, CU-14 | **hecha** |
+| **4** ✅ | `ms-usuarios`: registro y roles | CU-01 | **hecha** |
+| **5** ✅ | Librería común + primer mensaje RabbitMQ | CU-15 | **hecha** |
+| **6** ✅ | `ms-inventario`: stock y reservas | CU-05 (parte) | **hecha** |
 | **7** | `ms-cola`: sala de espera, sorteo y pases | CU-03, CU-04 | 3 |
 | **8** | `ms-ordenes`: crear orden con Feign | CU-05 (completo) | 3 |
 | **9** | `ms-pagos` + pagar la orden | CU-06 | 2 |
@@ -420,7 +420,13 @@ puerto propio.
 ```powershell
 curl.exe -s http://localhost:8090/api/eventos/ping
 ```
-→ `{"servicio":"ms-eventos","estado":"ok"}`
+→ `{"estado":"ok","servicio":"ms-eventos","puerto":8082,...}`
+
+> ⚠️ **Corregido durante la implementación.** El gateway reenvía la **ruta completa**: no recorta
+> el prefijo. Por eso `/api/eventos/ping` llega a ms-eventos como `/api/eventos/ping`, y el `/ping`
+> de la Fase 0 está en la raíz. Se añadió a los 5 servicios ruteados una segunda ruta
+> `@GetMapping({ "/ping", "/api/eventos/ping" })` para que esta prueba tenga sentido. Detalle en
+> [FASE-02](docs/fases/FASE-02-api-gateway.md).
 
 Fíjate en lo que acaba de pasar: pediste al puerto **8090** y te respondió el servicio del puerto
 **8082**. Eso es enrutamiento.
@@ -449,18 +455,22 @@ curl.exe -s -D - http://localhost:8090/api/eventos/ping -o NUL
 
 ### Prueba de no regresión
 
-- [ ] Los 9 servicios siguen respondiendo `/ping` por su puerto directo
-- [ ] Los contenedores de Docker siguen arriba
+- [x] Los 9 servicios siguen respondiendo `/ping` por su puerto directo
+- [x] Los contenedores de Docker siguen arriba
 
 ### Criterios de aceptación
 
-- [ ] Las 5 rutas públicas enrutan correctamente
-- [ ] Las 3 rutas internas devuelven `404` desde el gateway
-- [ ] `X-Request-Id` aparece en todas las respuestas
+- [x] Las 5 rutas públicas enrutan correctamente
+- [x] Las 3 rutas internas devuelven `404` desde el gateway
+- [x] `X-Request-Id` aparece en todas las respuestas
+- [x] `POST /api/ordenes` sin `X-Pase-Compra` → `400`, y `POST /api/ordenes/{id}/pagar` sin pase
+      **no** se bloquea
 
 ### Documento a generar
 
-`docs/fases/FASE-02-api-gateway.md`
+✅ [`docs/fases/FASE-02-api-gateway.md`](docs/fases/FASE-02-api-gateway.md) — **FASE COMPLETADA
+el 22/10/2026.** Verificado: 5 rutas enrutando, 3 servicios internos inalcanzables, `X-Request-Id`
+de punta a punta y el filtro del pase rechazando con `400`.
 
 ---
 
@@ -581,19 +591,23 @@ curl.exe -s http://localhost:8090/api/eventos/11111111-1111-1111-1111-1111111111
 
 ### Prueba de no regresión
 
-- [ ] Los otros 8 servicios siguen respondiendo `/ping`
-- [ ] El gateway sigue devolviendo `404` para `/api/inventario/**`
+- [x] Los otros 8 servicios siguen respondiendo `/ping`
+- [x] El gateway sigue devolviendo `404` para `/api/inventario/**`
 
 ### Criterios de aceptación
 
-- [ ] Se crea un evento con zonas y se recupera por el gateway
-- [ ] Los datos están realmente en `db_eventos` (verificado con `psql`)
-- [ ] Los errores devuelven códigos HTTP correctos con mensajes legibles
-- [ ] Una zona duplicada en el mismo evento se rechaza
+- [x] Se crea un evento con zonas y se recupera por el gateway
+- [x] Los datos están realmente en `db_eventos` (verificado con `psql`)
+- [x] Los errores devuelven códigos HTTP correctos con mensajes legibles
+- [x] Una zona duplicada en el mismo evento se rechaza
+- [x] **RN-01 probada en los dos sentidos:** cambiar la hora da `200` antes de publicar y `409`
+      después
 
 ### Documento a generar
 
-`docs/fases/FASE-03-ms-eventos.md`
+✅ [`docs/fases/FASE-03-ms-eventos.md`](docs/fases/FASE-03-ms-eventos.md) — **FASE COMPLETADA
+el 22/10/2026.** Verificado: 3 tablas creadas, evento publicado con 3 zonas y 900 de aforo, RN-01
+congelando la hora (`409 EVENTO_CONGELADO`) y la API interna inalcanzable por el gateway.
 
 ---
 
@@ -674,14 +688,16 @@ curl.exe -s -o NUL -w "%{http_code}" http://localhost:8090/internal/usuarios/<id
 
 ### Criterios de aceptación
 
-- [ ] Registro funcionando con validaciones (email válido, DNI de 8 dígitos, contraseña mínima)
-- [ ] Contraseña cifrada con BCrypt y nunca devuelta en las respuestas
-- [ ] DNI y email duplicados rechazados con `409`
-- [ ] Endpoint interno accesible por puerto directo e inaccesible por el gateway
+- [x] Registro funcionando con validaciones (email válido, DNI de 8 dígitos, contraseña mínima)
+- [x] Contraseña cifrada con BCrypt y nunca devuelta en las respuestas
+- [x] DNI y email duplicados rechazados con `409`
+- [x] Endpoint interno accesible por puerto directo e inaccesible por el gateway
+- [x] *(añadido)* El registro público no permite elegir el rol: siempre `COMPRADOR`
 
 ### Documento a generar
 
-`docs/fases/FASE-04-ms-usuarios.md`
+✅ [`docs/fases/FASE-04-ms-usuarios.md`](docs/fases/FASE-04-ms-usuarios.md) — **FASE COMPLETADA el
+23/10/2026.** 6 usuarios sembrados (ids `…0001` a `…0006`, contraseña `Teleticket123`).
 
 ---
 
@@ -753,7 +769,9 @@ está caído, solo falla `/publicar`; crear y consultar eventos sigue funcionand
 **Paso 1 — Abre la consola de RabbitMQ** en http://localhost:15672 (guest/guest) y ve a la
 pestaña **Queues**. Deberías ver las dos colas con **0 mensajes**.
 
-**Paso 2 — Publica el evento de la Fase 3:**
+**Paso 2 — Crea un evento nuevo y publícalo** (el de la Fase 3 ya está `EN_VENTA`, y al
+publicarse antes de existir el mensaje no emitió nada: `PUT /publicar` daría `409 YA_PUBLICADO`.
+Los comandos para crearlo están en [FASE-05](docs/fases/FASE-05-mensajeria-rabbitmq.md)):
 
 ```powershell
 curl.exe -s -X PUT "http://localhost:8090/api/eventos/$EVENTO/publicar" -H "X-Usuario-Id: 00000000-0000-0000-0000-000000000001"

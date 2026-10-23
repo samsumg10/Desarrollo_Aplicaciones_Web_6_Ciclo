@@ -25,7 +25,13 @@ public class PingController {
 	@Value("${server.port}")
 	private int puerto;
 
-	@GetMapping("/ping")
+	// Dos rutas al mismo metodo:
+	//   /ping              -> por el puerto directo (lo usa verificar-servicios.ps1)
+	//   /api/tickets/ping  -> a traves del API Gateway en el 8090
+	//
+	// Hacen falta las dos porque el Gateway reenvia la ruta COMPLETA: no
+	// recorta el prefijo /api/... antes de pasarla al microservicio.
+	@GetMapping({ "/ping", "/api/tickets/ping" })
 	public Map<String, Object> ping() {
 		return Map.of(
 				"servicio", servicio,

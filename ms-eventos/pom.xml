@@ -41,6 +41,37 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!-- Fase 3: acceso a la base de datos con JPA -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- Driver de PostgreSQL. 'runtime' porque solo se necesita al
+		     ejecutar, no al compilar: el codigo usa JPA, no el driver. -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<!-- Valida los datos que llegan en las peticiones (@NotBlank, @Min...)
+		     antes de que toquen la base de datos -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<!-- Fase 5: RabbitMQ. ms-eventos publica evento.publicado al publicar un evento -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+		<!-- Fase 5: libreria comun (libs/mensajeria-comun). Hay que instalarla antes
+		     con 'mvnw install'. Trae el sobre de los mensajes, las constantes de
+		     nombres y el PublicadorEventos. -->
+		<dependency>
+			<groupId>com.teleticket</groupId>
+			<artifactId>mensajeria-comun</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.projectlombok</groupId>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.1</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.teleticket</groupId>
+	<artifactId>mensajeria-comun</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>mensajeria-comun</name>
+	<description>Libreria compartida: formato de los mensajes, nombres de exchanges y routing keys, y publicador.</description>
+	<properties>
+		<java.version>21</java.version>
+	</properties>
+	<dependencies>
+		<!-- RabbitTemplate, el conversor JSON y la autoconfiguracion de RabbitMQ.
+		     Al ser dependencia normal, los servicios que usan esta libreria la reciben
+		     de forma transitiva. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+		<!-- Jackson 3 (tools.jackson): convierte los mensajes a JSON y de vuelta -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jackson</artifactId>
+		</dependency>
+	</dependencies>
+
+	<!-- Sin spring-boot-maven-plugin a proposito: esto es una libreria, no una
+	     aplicacion. Si se declarara, 'package' intentaria empaquetarla como
+	     ejecutable y los demas servicios no podrian usar sus clases. -->
+
+</project>
